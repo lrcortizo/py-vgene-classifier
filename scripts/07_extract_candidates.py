@@ -6,6 +6,7 @@ from Bio.Seq import Seq
 import pandas as pd
 from pathlib import Path
 import sys
+import re
 
 def load_genome(genome_file):
     """Load genome into memory as dictionary"""
@@ -16,18 +17,7 @@ def load_genome(genome_file):
     return genome
 
 def extract_region(genome, contig_id, start, end, strand):
-    """
-    Extract a genomic region
-    
-    Args:
-        genome: Dictionary of SeqIO records
-        contig_id: Contig/chromosome ID
-        start, end: Coordinates (1-indexed)
-        strand: +1 or -1
-    
-    Returns:
-        DNA sequence (Seq object)
-    """
+    """Extract a genomic region"""
     if contig_id not in genome:
         return None
     
@@ -40,17 +30,8 @@ def extract_region(genome, contig_id, start, end, strand):
     
     return seq
 
-def find_start_stop(dna_seq, min_length=250, max_length=450):
-    """
-    Find START (ATG) and STOP codons in sequence
-    
-    Args:
-        dna_seq: DNA sequence
-        min_length, max_length: Expected gene length in bp
-    
-    Returns:
-        (start_pos, stop_pos) or None
-    """
+def find_start_stop(dna_seq, min_length=200, max_length=500):
+    """Find START (ATG) and STOP codons in sequence"""
     # Find all ATG positions
     start_codons = []
     for i in range(len(dna_seq) - 2):
@@ -65,7 +46,6 @@ def find_start_stop(dna_seq, min_length=250, max_length=450):
             stop_codons.append(i)
     
     # Find best START-STOP pair
-    # Criterios: longitud ~300-400 bp, in-frame
     best_pair = None
     best_score = float('inf')
     
@@ -73,29 +53,50 @@ def find_start_stop(dna_seq, min_length=250, max_length=450):
         for stop in stop_codons:
             if stop > start:
                 length = stop - start
-                # Check if in-frame (múltiplo de 3)
+                # Check if in-frame
                 if (stop - start) % 3 != 0:
                     continue
                 # Check length
                 if min_length <= length <= max_length:
-                    # Score: prefer length close to 350
-                    score = abs(length - 350)
+                    # Prefer length close to 330 (typical V-gene)
+                    score = abs(length - 330)
                     if score < best_score:
                         best_pair = (start, stop)
                         best_score = score
     
     return best_pair
 
-def extract_candidates(hits_file, genome_file, output_fasta, extend=500):
+def remove_leader(protein_seq):
     """
-    Extract candidate V-gene sequences from TBLASTN hits
+    Remove leader sequence from V-gene
+    Returns: (cleaned_sequence, found_pattern) or (None, None) if no pattern found
+    """
+    protein_str = str(protein_seq)
     
-    Args:
-        hits_file: TBLASTN output (tabular)
-        genome_file: Genome FASTA
-        output_fasta: Output FASTA with candidates
-        extend: Bases to extend around hit (to find START/STOP)
-    """
+    # Framework 1 patterns (start of mature V-domain)
+    fr1_patterns = [
+        'QVQLVQSG', 'QVQLVESG', 'EVQLVESG', 'QVQLQQSG',
+        'EVQLLESG', 'QVQLQESG', 'QVTLKESG', 'QVQLKESG',
+        'QITLKESG', 'DVQLVESG', 'QVQLLESGG', 'EVQLLESGG',
+        'QSVEESGG', 'QVQLQESGG', 'QVQLVESGG'
+    ]
+    
+    # Try to find FR1 pattern
+    for pattern in fr1_patterns:
+        pos = protein_str.find(pattern)
+        if pos != -1 and pos < 40:  # Leader should be <40 aa
+            return protein_str[pos:], pattern
+    
+    # If no pattern found, check if sequence already starts with Q/E (typical FR1)
+    if protein_str[0] in ['Q', 'E', 'D']:
+        # Might already be trimmed
+        return protein_str, "already_trimmed"
+    
+    return None, None
+
+def extract_candidates(hits_file, genome_file, output_fasta, extend=500):
+    """Extract candidate V-gene sequences from TBLASTN hits"""
+    
     # Load genome
     genome = load_genome(genome_file)
     
@@ -109,108 +110,153 @@ def extract_candidates(hits_file, genome_file, output_fasta, extend=500):
     )
     print(f"   Total hits: {len(hits_df)}")
     
-    # Filter by quality (optional)
-    # Keep only hits with good identity and e-value
+    # Filter by quality
     filtered = hits_df[
-        (hits_df['pident'] >= 60) &  # At least 60% identity
-        (hits_df['evalue'] <= 1e-5)   # Good e-value
+        (hits_df['pident'] >= 60) &
+        (hits_df['evalue'] <= 1e-5)
     ]
     print(f"   After filtering (pident>=60%, evalue<=1e-5): {len(filtered)}")
     
     print(f"\n🔬 Extracting candidate sequences...")
+    
     candidates = []
+    stats = {
+        'total_processed': 0,
+        'found_start_stop': 0,
+        'translation_ok': 0,
+        'found_fr1_pattern': 0,
+        'length_ok': 0,
+        'no_premature_stops': 0,
+        'final_candidates': 0
+    }
     
     for idx, hit in filtered.iterrows():
+        stats['total_processed'] += 1
+        
         # Progress
-        if idx % 50 == 0:
+        if idx % 100 == 0:
             print(f"   Progress: {idx}/{len(filtered)}", end='\r')
         
         # Determine strand
         strand = 1 if hit['sstart'] < hit['send'] else -1
         start = min(hit['sstart'], hit['send']) - extend
         end = max(hit['sstart'], hit['send']) + extend
-        
-        # Ensure positive coordinates
         start = max(1, start)
         
         # Extract region
-        region_seq = extract_region(
-            genome, 
-            hit['sseqid'], 
-            start, 
-            end, 
-            strand
-        )
-        
+        region_seq = extract_region(genome, hit['sseqid'], start, end, strand)
         if region_seq is None:
             continue
         
         # Find START/STOP
         boundaries = find_start_stop(region_seq)
+        if not boundaries:
+            continue
         
-        if boundaries:
-            start_pos, stop_pos = boundaries
-            vgene_seq = region_seq[start_pos:stop_pos+3]  # Include stop codon
-            
-            # Translate
-            try:
-                protein_seq = vgene_seq.translate()
-                
-                # Basic filtering
-                # Length check
-                if len(protein_seq) < 90 or len(protein_seq) > 130:
-                    continue
-                
-                # Check for premature stops (pseudogene indicator)
-                # Allow only 1 stop at the end
-                if str(protein_seq)[:-1].count('*') > 0:
-                    continue
-                
-                # Remove terminal stop for output
-                protein_seq_clean = str(protein_seq).rstrip('*')
-                
-                candidates.append({
-                    'id': f"candidate_{idx}_{hit['qseqid']}",
-                    'sequence': protein_seq_clean,
-                    'contig': hit['sseqid'],
-                    'coords': f"{start+start_pos}-{start+stop_pos}",
-                    'strand': '+' if strand > 0 else '-',
-                    'pident': hit['pident'],
-                    'evalue': hit['evalue'],
-                    'query': hit['qseqid']
-                })
-            
-            except Exception as e:
-                # Translation errors (e.g., incomplete codons)
-                continue
+        stats['found_start_stop'] += 1
+        
+        start_pos, stop_pos = boundaries
+        vgene_seq = region_seq[start_pos:stop_pos+3]
+        
+        # Translate
+        try:
+            protein_seq = vgene_seq.translate()
+            stats['translation_ok'] += 1
+        except:
+            continue
+        
+        # Remove terminal stop
+        protein_str = str(protein_seq).rstrip('*')
+        
+        # Try to remove leader
+        cleaned_seq, pattern = remove_leader(protein_str)
+        
+        if cleaned_seq is None:
+            # No FR1 pattern found, keep original
+            cleaned_seq = protein_str
+            pattern = "none"
+        else:
+            stats['found_fr1_pattern'] += 1
+        
+        # Length check (after leader removal)
+        if len(cleaned_seq) < 85 or len(cleaned_seq) > 135:
+            continue
+        
+        stats['length_ok'] += 1
+        
+        # Check for premature stops
+        if '*' in cleaned_seq:
+            continue
+        
+        stats['no_premature_stops'] += 1
+        stats['final_candidates'] += 1
+        
+        candidates.append({
+            'id': f"candidate_{idx}_{hit['qseqid']}",
+            'sequence': cleaned_seq,
+            'contig': hit['sseqid'],
+            'coords': f"{start+start_pos}-{start+stop_pos}",
+            'strand': '+' if strand > 0 else '-',
+            'pident': hit['pident'],
+            'evalue': hit['evalue'],
+            'query': hit['qseqid'],
+            'fr1_pattern': pattern,
+            'length': len(cleaned_seq)
+        })
     
     print(f"\n   ✅ Extracted {len(candidates)} valid candidates")
     
     # Save to FASTA
-    print(f"\n💾 Saving to {output_fasta}")
-    with open(output_fasta, 'w') as f:
-        for cand in candidates:
-            header = (f">{cand['id']} query={cand['query']} "
-                     f"{cand['contig']}:{cand['coords']}({cand['strand']}) "
-                     f"pident={cand['pident']:.1f}% evalue={cand['evalue']:.2e}")
-            f.write(f"{header}\n")
-            f.write(f"{cand['sequence']}\n")
-    
-    print(f"   ✅ Done")
+    if candidates:
+        print(f"\n💾 Saving to {output_fasta}")
+        with open(output_fasta, 'w') as f:
+            for cand in candidates:
+                header = (f">{cand['id']} query={cand['query']} "
+                         f"{cand['contig']}:{cand['coords']}({cand['strand']}) "
+                         f"pident={cand['pident']:.1f}% evalue={cand['evalue']:.2e} "
+                         f"fr1={cand['fr1_pattern']} len={cand['length']}")
+                f.write(f"{header}\n")
+                f.write(f"{cand['sequence']}\n")
+        print(f"   ✅ Done")
+    else:
+        print(f"\n⚠️  No valid candidates found")
+        print(f"\n📊 Extraction pipeline stats:")
+        for key, value in stats.items():
+            print(f"   {key}: {value}")
+        return []
     
     # Summary statistics
+    print(f"\n{'='*70}")
+    print(f"EXTRACTION PIPELINE STATS")
+    print(f"{'='*70}")
+    for key, value in stats.items():
+        print(f"{key}: {value}")
+    
     print(f"\n{'='*70}")
     print(f"SUMMARY")
     print(f"{'='*70}")
     print(f"TBLASTN hits (raw): {len(hits_df)}")
     print(f"After quality filter: {len(filtered)}")
     print(f"Valid candidates extracted: {len(candidates)}")
-    print(f"Extraction rate: {len(candidates)/len(filtered)*100:.1f}%")
-    print(f"\nLength distribution:")
-    lengths = [len(c['sequence']) for c in candidates]
-    print(f"  Min: {min(lengths)} aa")
-    print(f"  Max: {max(lengths)} aa")
-    print(f"  Mean: {sum(lengths)/len(lengths):.1f} aa")
+    if len(filtered) > 0:
+        print(f"Extraction rate: {len(candidates)/len(filtered)*100:.1f}%")
+    
+    if candidates:
+        lengths = [c['length'] for c in candidates]
+        print(f"\nLength distribution:")
+        print(f"  Min: {min(lengths)} aa")
+        print(f"  Max: {max(lengths)} aa")
+        print(f"  Mean: {sum(lengths)/len(lengths):.1f} aa")
+        
+        # FR1 pattern distribution
+        patterns = {}
+        for c in candidates:
+            p = c['fr1_pattern']
+            patterns[p] = patterns.get(p, 0) + 1
+        
+        print(f"\nFR1 patterns found:")
+        for pattern, count in sorted(patterns.items(), key=lambda x: -x[1]):
+            print(f"  {pattern}: {count}")
     
     return candidates
 
@@ -249,9 +295,15 @@ if __name__ == "__main__":
     # Extract
     candidates = extract_candidates(HITS_FILE, GENOME_FILE, OUTPUT_FASTA)
     
-    print(f"\n{'='*70}")
-    print(f"✅ DONE")
-    print(f"{'='*70}")
-    print(f"Candidates saved to: {OUTPUT_FASTA}")
-    print(f"\nNext step: Classify with CNN")
-    print(f"  python scripts/predict_fasta.py {OUTPUT_FASTA} -o {SPECIES_RESULTS}/predictions.csv")
+    if candidates:
+        print(f"\n{'='*70}")
+        print(f"✅ DONE")
+        print(f"{'='*70}")
+        print(f"Candidates saved to: {OUTPUT_FASTA}")
+        print(f"\nNext step: Classify with CNN")
+        print(f"  python scripts/predict_fasta.py {OUTPUT_FASTA} -o {SPECIES_RESULTS}/predictions.csv")
+    else:
+        print(f"\n{'='*70}")
+        print(f"⚠️  NO CANDIDATES EXTRACTED")
+        print(f"{'='*70}")
+        print(f"Check the extraction pipeline stats above to see where candidates were filtered out.")
