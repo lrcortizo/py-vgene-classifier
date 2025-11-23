@@ -181,6 +181,87 @@ python scripts/inspect_predictions.py
 - Model confidence analysis
 - Per-class accuracy breakdown
 
+## Cross-Species V-Gene Discovery
+
+This project also includes a pipeline for discovering V-genes in unannotated genomes using homology-based search combined with CNN validation.
+
+### Additional Requirements
+
+For the discovery pipeline:
+```bash
+conda install -c bioconda -c conda-forge blast mafft ncbi-datasets-cli
+```
+
+### Discovery Pipeline Scripts
+
+#### 1. Download Target Genome
+```bash
+python scripts/05_download_genome.py
+```
+Edit the script to specify species and NCBI accession.
+
+#### 2. TBLASTN Homology Search
+```bash
+python scripts/06_run_tblastn.py
+```
+Searches the target genome using known V-genes as queries.
+
+**Output:**
+- Hit table with genomic coordinates
+- Identity scores and e-values
+
+#### 3. Extract Candidate Sequences
+```bash
+python scripts/07_extract_candidates.py
+```
+Extracts complete V-gene sequences by:
+- Finding START (ATG) and STOP codons
+- Removing leader sequences
+- Filtering by length and quality
+
+**Output:**
+- Candidate V-gene sequences (FASTA)
+- Extraction statistics
+
+#### 4. Validate with CNN
+```bash
+python scripts/predict_fasta.py results/<species>/candidates.fasta \
+    -o results/<species>/predictions.csv --threshold 0.9
+```
+
+#### 5. Filter Validated V-Genes
+```bash
+python scripts/08_filter_positives.py
+```
+
+**Output:**
+- Validated V-genes (FASTA)
+- Detailed summary report
+
+### Discovery Pipeline Workflow
+```
+Known V-genes (query)
+         ↓
+    TBLASTN search on target genome
+         ↓
+    Extract candidates (START/STOP detection)
+         ↓
+    CNN classification
+         ↓
+    Validated V-genes
+```
+
+### Alignment and Validation
+```bash
+# Combine reference and discovered sequences
+cat data/raw/positive/*.fasta results/<species>/validated_vgenes.fasta > results/<species>/combined.fasta
+
+# Align with MAFFT
+mafft --auto results/<species>/combined.fasta > results/<species>/aligned.fasta
+
+# Open in SeaView or other alignment viewer for manual inspection
+```
+
 ## Methodology
 
 ### Feature Representation
