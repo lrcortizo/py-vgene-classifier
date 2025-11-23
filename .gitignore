@@ -11,17 +11,27 @@ venv/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# Data (large files)
-data/raw/
-data/processed/
-*.fasta
-*.fastq
-*.fq
-*.fa
+# Data files (genomes, sequences, large datasets)
+data/
+data/**/*
+
+# Keep data directory structure (empty folders with .gitkeep)
+!data/.gitkeep
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/genomes/.gitkeep
 
 # Trained models
 models/*.pt
 models/*.pth
+
+# Results directory (intermediate files)
+results/
+!results/.gitkeep
+
+# Keep final summaries/reports
+!results/**/*_summary.txt
+!results/**/*.png
 
 # IDE
 .vscode/
