@@ -6,14 +6,20 @@ __pycache__/
 .Python
 env/
 venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb_checkpoints
+*.ipynb
 
 # Data (large files)
 data/raw/
 data/processed/
+data/genomes/
 *.fasta
 *.fastq
 *.fq
@@ -23,9 +29,22 @@ data/processed/
 models/*.pt
 models/*.pth
 
+# Results (exclude large files, keep summaries)
+results/*/
+!results/.gitkeep
+!results/bat/
+results/bat/*
+!results/bat/SUMMARY.txt
+!results/bat/vgenes_predicted.fasta
+!results/training_history_multispecies.png
+!results/training_history_multispecies.csv
+
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
@@ -33,3 +52,13 @@ Thumbs.db
 
 # Environment variables
 .env
+
+# Personal notes
+PROGRESS.md
+TODO.md
+notes/
+
+# Temporary files
+*.tmp
+*.log
+*.bak
