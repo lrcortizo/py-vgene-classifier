@@ -1,0 +1,29 @@
+=== MULTISPECIES CNN V-GENE DISCOVERY ===
+Date: Fri Dec 12 18:40:50 CET 2025
+
+DATASET:
+- V-genes: 18,907 (mammals + reptiles)
+- Background: 37,814 (synthetic)
+- Loci: IGHV, IGKV, TRAV, TRBV
+
+MODEL:
+- Architecture: CNN (595K params)
+- Training accuracy: 100%
+- Validation accuracy: 100%
+- Device: CUDA (RTX 4060)
+
+RESULTS (Myotis lucifugus):
+- TBLASTN hits: 52,426
+- Candidates extracted: 863
+- V-genes predicted: 89
+- Top confidence: 1.0000 (10 genes)
+
+COMPARISON:
+- Previous (human-only): 11 genes
+- Current (multi-species): 89 genes
+- Improvement: 8.1x
+
+FILES:
+- candidates.fasta (863 seqs)
+- vgenes_predicted.fasta (89 V-genes)
+- vgenes_predicted_all_predictions.csv (full results)

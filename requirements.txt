@@ -1,3 +1,11 @@
+# Core dependencies for V-Gene Classifier
+#
+# NOTE: For GPU support, install PyTorch separately:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#
+# Then install remaining dependencies:
+#   pip install -r requirements.txt --no-deps torch
+
 torch>=2.0.0
 biopython>=1.80
 pandas>=2.0.0
