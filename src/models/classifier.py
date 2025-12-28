@@ -73,7 +73,7 @@ class VGeneCNN(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.fc2 = nn.Linear(128, 64)
         self.dropout2 = nn.Dropout(dropout)
-        self.fc3 = nn.Linear(64, 1)  # Binary classification
+        self.fc3 = nn.Linear(64, 5)  # Multi-class classification
 
     def forward(self, x):
         """
@@ -110,9 +110,6 @@ class VGeneCNN(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.dropout2(x)
         x = self.fc3(x)
-
-        # Sigmoid for binary classification
-        x = torch.sigmoid(x)
 
         return x
 
