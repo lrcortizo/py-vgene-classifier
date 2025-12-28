@@ -12,11 +12,11 @@ from sklearn.model_selection import train_test_split
 import argparse
 import random
 
-# Mapeo de locus a clase numérica
+# Map loci to class labels
 LOCUS_TO_CLASS = {
     'ighv': 1,
     'igkv': 2,
-    'iglv': 2,  # IGLV se agrupa con IGKV
+    'iglv': 2,  # IGLV grouped with IGKV
     'trav': 3,
     'trbv': 4,
     'background': 0,
@@ -63,11 +63,11 @@ def load_vgenes(input_dir, loci, min_length=80, max_length=140):
     stats = {locus: 0 for locus in loci}
 
     for locus in loci:
-        # Try different file patterns
+        # Try different file patterns (RECURSIVAMENTE con **)
         patterns = [
-            f"{locus}_*.realigned.annotated.fasta",
-            f"{locus}_*.fasta",
-            f"*{locus}*.fasta"
+            f"**/{locus}_*.realigned.annotated.fasta",
+            f"**/{locus}_*.fasta",
+            f"**/*{locus}*.fasta"
         ]
 
         files_found = []

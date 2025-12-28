@@ -11,25 +11,31 @@ ENV/
 dist/
 build/
 
-
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
 
-# Data (large files)
+# Data (large files, except specific multiclass files)
 data/raw/
+!data/raw/positive/
+data/raw/positive/*
+!data/raw/positive/multispecies_queries.fasta
 data/processed/
+!data/processed/train_multispecies_multiclass.csv
+!data/processed/val_multispecies_multiclass.csv
 data/genomes/
 *.fasta
 *.fastq
 *.fq
 *.fa
+!data/raw/positive/multispecies_queries.fasta
 
-# Trained models
+# Trained models (except multiclass model)
 models/*.pt
 models/*.pth
+!models/best_model_multiclass.pt
 
-# Results (exclude large files, keep summaries)
+# Results (exclude large files, keep summaries and key outputs)
 results/*/
 !results/.gitkeep
 !results/bat/
@@ -38,6 +44,13 @@ results/bat/*
 !results/bat/vgenes_predicted.fasta
 !results/training_history_multispecies.png
 !results/training_history_multispecies.csv
+!results/training_history_multiclass.png
+!results/training_history_multiclass.csv
+!results/confusion_matrix_multiclass.png
+!results/mouse/
+results/mouse/*
+!results/mouse/vgenes_predicted.fasta
+!results/mouse/vgenes_predicted_all_predictions.csv
 
 # IDE
 .vscode/
