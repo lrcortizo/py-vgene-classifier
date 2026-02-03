@@ -2,6 +2,108 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2025-02-03
+
+### Added
+- **IMGT validation pipeline** following Olivieri's methodology:
+  - `11_parse_imgt_tables.py` - Parse IMGT protein display tables to FASTA
+  - `12_validate_predictions.py` - BLAST-based validation with quantitative metrics
+  - `13_phylogenetic_validation.py` - Phylogenetic tree validation with ClustalO + SeaView
+- IMGT reference extraction for mouse (572 functional V-genes)
+- NCBI GFF-based reference extraction (646 annotated V-genes)
+- Dual validation approach: quantitative (BLAST) + visual (phylogenetic tree)
+- Validation summary documentation (`VALIDATION_SUMMARY.md`)
+
+### Validation Results - Mouse GRCm39
+
+#### IMGT Reference (572 functional V-genes)
+**Method:** BLASTP with ≥80% identity, ≥70% coverage
+- Validated: 79/202 (39.1%)
+- Misclassified: 31/202 (15.3%)
+- No IMGT match: 92/202 (45.5%)
+- **Precision (of matched): 71.8%**
+
+**Recall by locus:**
+- IGHV: 10.3% (35/341 IMGT genes found)
+- IGKV: 12.0% (12/100 IMGT genes found)
+- TRAV: 23.9% (26/109 IMGT genes found)
+- TRBV: 27.3% (6/22 IMGT genes found)
+
+#### NCBI Reference (646 annotated V-genes from GFF)
+**Strict criteria** (≥95% identity, ≥90% coverage):
+- Validated: 8/202 (4.0%)
+- High-quality matches: 15/995 BLAST hits
+
+**Relaxed criteria** (≥80% identity, ≥70% coverage):
+- Validated: 87/202 (43.1%)
+- Misclassified: 51/202 (25.2%)
+- **Precision (of matched): 63.0%**
+- Average recall: ~20% across loci
+
+#### Phylogenetic Tree Analysis
+**Method:** ClustalO MSA + tree building
+- Total sequences: 652 (572 IMGT + 80 top predictions)
+- Multiple sequence alignment completed
+- Trees generated: Newick and Nexus formats
+- Visualization: SeaView-compatible
+- **Result:** ~70-80% predictions cluster correctly with IMGT of same locus
+- Visual confirmation of quantitative BLAST results
+
+### Key Findings
+
+#### Model Performance
+- Successfully identifies V-genes with high specificity
+- Strong separation between IG and TR gene families
+- IG vs TR classification: robust and reliable
+
+#### Main Challenge: IGHV vs IGKV Confusion
+- ~15% misclassification between heavy and light chain immunoglobulins
+- Root cause: High sequence similarity (some genes show 100% identity across loci)
+- Biological limitation: genes share recent evolutionary origin
+- Examples: candidate_222, candidate_342 (both 100% identity to wrong locus)
+
+#### Comparison: IMGT vs NCBI
+|Metric|IMGT|NCBI (relaxed)|
+|------|----|----|
+|Precision|71.8%|63.0%|
+|Validated|79 (39.1%)|87 (43.1%)|
+|Recall (IGHV)|10.3%|21.3%|
+
+- IMGT: Better precision, more comprehensive reference
+- NCBI: Higher recall, more permissive matching
+- Both confirm same error patterns (IGHV ↔ IGKV confusion)
+
+### Interpretation
+- Model suitable for phylogenetic analysis at family level (IG/TR)
+- Precision of 71.8% (IMGT) acceptable for evolutionary studies
+- Lower recall (10-27%) due to:
+  - Conservative TBLASTN e-value (1e-5)
+  - Strain differences (training data vs GRCm39)
+  - Comprehensive reference databases (more genes to find)
+- Future improvement: consider 3-class model (background, IG, TR) to avoid intra-family confusion
+
+### Files Structure
+```
+results/mouse/
+├── VALIDATION_SUMMARY.md           # Comprehensive validation report
+├── validation_imgt/
+│   ├── validated.csv               # 79 correct predictions
+│   ├── misclassified.csv           # 31 locus confusions
+│   └── no_match.csv                # 92 without IMGT match
+├── validation_ncbi/                # Strict validation (95% identity)
+├── validation_ncbi_relaxed/        # Relaxed validation (80% identity)
+└── phylogenetic_validation/
+    ├── tree.nexus                  # For SeaView visualization
+    └── tree.newick                 # Standard phylogenetic format
+```
+
+### Technical Notes
+- IMGT references manually downloaded from web interface
+- NCBI references extracted from GRCm39 GFF annotations
+- ClustalO parameters: default settings, 8 threads
+- BLAST databases created with makeblastdb
+- Phylogenetic trees built with ClustalO guide tree method
+
 ## [1.2.0] - 2024-12-28
 
 ### Added
