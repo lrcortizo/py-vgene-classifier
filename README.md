@@ -22,6 +22,48 @@ This project implements a Convolutional Neural Network (CNN) to identify and cla
 - **Modular Design**: Reusable components for encoding, model architecture, and training
 - **Reproducible Results**: Fixed random seeds and documented parameters
 
+## What's New in v1.3.0
+
+### IMGT Validation Pipeline
+- **Dual validation approach**: Quantitative (BLAST) + Visual (phylogenetic tree)
+- **IMGT reference integration**: Manual extraction from IMGT protein displays
+- **NCBI reference extraction**: Automated parsing from genome GFF annotations
+- **Phylogenetic tree analysis**: ClustalO MSA + SeaView visualization
+
+### Validation Scripts
+```bash
+# Parse IMGT protein display tables
+scripts/11_parse_imgt_tables.py
+
+# BLAST-based validation with metrics
+scripts/12_validate_predictions.py
+
+# Phylogenetic tree validation (Olivieri's method)
+scripts/13_phylogenetic_validation.py
+```
+
+### Validation Results (Mouse GRCm39)
+
+**IMGT Reference (572 functional V-genes):**
+- Precision: 71.8% (of matched predictions)
+- Validated: 79/202 (39.1%)
+- Challenge: IGHV ↔ IGKV confusion (~15%)
+
+**NCBI Reference (646 annotated V-genes):**
+- Precision: 63.0% (relaxed criteria)
+- Validated: 87/202 (43.1%)
+
+**Phylogenetic Analysis:**
+- 652 sequences aligned (572 IMGT + 80 top predictions)
+- ~70-80% predictions cluster correctly with IMGT
+- Visual confirmation of BLAST results
+
+### Key Findings
+- Model successfully separates IG vs TR gene families
+- Main challenge: Heavy vs light chain distinction (IGHV vs IGKV)
+- Some genes show 100% identity across loci (biological limitation)
+- Suitable for phylogenetic analysis at family level
+
 ## What's New in v1.2.0
 
 ### Multiclass Classification
@@ -84,6 +126,9 @@ vgene-classifier/
 │   ├── 09_extract_candidates.py                # Candidate extraction
 │   ├── 10_filter_positives.py                  # CNN filtering (binary)
 │   ├── 10_filter_positives_multiclass.py       # CNN filtering (multiclass)
+│   ├── 11_parse_imgt_tables.py                 # Parse IMGT references
+│   ├── 12_validate_predictions.py              # BLAST validation
+│   ├── 13_phylogenetic_validation.py           # Tree-based validation
 │   ├── verify_split.py                         # Data quality checks
 │   └── inspect_predictions.py                  # Prediction analysis
 │
@@ -110,6 +155,8 @@ vgene-classifier/
 ### Software
 - Python 3.11+
 - BLAST+ (2.10.0+)
+- ClustalO (1.2.4+) - for phylogenetic validation (optional)
+- SeaView (optional, for tree visualization)
 - conda/mamba (recommended)
 
 ### Python Packages
@@ -211,6 +258,79 @@ python scripts/10_filter_positives_multiclass.py \
 **Output**: FASTA with predicted V-genes annotated by locus (IGHV, IGKV, TRAV, TRBV)
 
 **Total time**: ~2-3 hours (mostly automated)
+
+## Validation Pipeline (v1.3.0)
+
+### Validate Predictions Against IMGT
+
+**Step 1: Extract IMGT References**
+
+Manually download V-gene sequences from IMGT:
+1. Visit IMGT Repertoire: http://www.imgt.org/IMGTrepertoire/
+2. Navigate to Proteins > Protein displays
+3. Select species (e.g., Mus musculus) and locus (IGHV, IGKV, TRAV, TRBV)
+4. Copy complete table to text files
+```bash
+# Parse IMGT tables to FASTA
+python scripts/11_parse_imgt_tables.py \
+    --input-dir data/reference/imgt_mouse \
+    --output-dir data/reference/imgt_mouse
+```
+
+**Step 2: BLAST Validation**
+```bash
+# Combine IMGT references
+cat data/reference/imgt_mouse/*_mouse_imgt.fasta > \
+    data/reference/imgt_mouse/all_vgenes_imgt.fasta
+
+# Run BLAST validation
+python scripts/12_validate_predictions.py \
+    --predictions results/mouse/vgenes_predicted.fasta \
+    --predictions-csv results/mouse/vgenes_predicted_all_predictions.csv \
+    --reference data/reference/imgt_mouse/all_vgenes_imgt.fasta \
+    --output-dir results/mouse/validation_imgt \
+    --min-identity 80 \
+    --min-coverage 70
+```
+
+**Output**: CSVs with validated, misclassified, and no-match predictions
+
+**Step 3: Phylogenetic Tree Validation**
+```bash
+# Requires ClustalO
+conda install -c bioconda clustalo
+
+# Build phylogenetic tree
+python scripts/13_phylogenetic_validation.py \
+    --imgt data/reference/imgt_mouse/all_vgenes_imgt.fasta \
+    --predictions results/mouse/vgenes_predicted.fasta \
+    --predictions-csv results/mouse/vgenes_predicted_all_predictions.csv \
+    --output-dir results/mouse/phylogenetic_validation \
+    --top-n 20 \
+    --threads 8
+```
+
+**Output**:
+- Multiple sequence alignment (FASTA)
+- Phylogenetic tree (Newick and Nexus formats)
+- Ready for visualization in SeaView
+
+**Step 4: Visualize Tree**
+```bash
+# Open in SeaView (if installed)
+seaview results/mouse/phylogenetic_validation/tree.nexus
+
+# Or use online tools:
+# - iTOL: https://itol.embl.de/
+# - Phylo.io: https://phylo.io/
+```
+
+**Interpretation**:
+- Predictions clustering with IMGT of same locus → Validated
+- Predictions clustering with IMGT of different locus → Misclassified
+- Predictions isolated from all IMGT → Potential false positives
+
+**Total validation time**: ~30-60 minutes (mostly alignment)
 
 ## Data Requirements
 
@@ -378,6 +498,36 @@ BATCH_SIZE = 32  # Reduce in training scripts
 - Lower CNN threshold (0.3-0.4)
 - Use species-specific queries
 - Check genome assembly quality
+
+### ClustalO Not Found
+```bash
+# Install with conda (recommended)
+conda install -c bioconda clustalo
+
+# Or compile from source
+# http://www.clustal.org/omega/
+```
+
+### SeaView Not Available
+```bash
+# Ubuntu/Debian
+sudo apt install seaview
+
+# macOS
+brew install seaview
+
+# Windows: Download from http://doua.prabi.fr/software/seaview
+
+# Or use online tree viewers:
+# - iTOL: https://itol.embl.de/
+# - Phylo.io: https://phylo.io/
+```
+
+### Validation Shows Low Recall
+- Normal for comprehensive references (IMGT has 300+ genes per locus)
+- Conservative TBLASTN e-value (1e-5) limits sensitivity
+- Strain differences between training data and target genome
+- Consider: Focus on precision rather than recall for phylogenetic studies
 
 ## Citation
 

@@ -48,7 +48,12 @@ results/bat/*
 !results/training_history_multiclass.csv
 !results/confusion_matrix_multiclass.png
 !results/mouse/
-results/mouse/*
+results/mouse/candidates.fasta
+results/mouse/tblastn_results.txt
+results/mouse/validation_*/blast_results.txt
+results/mouse/validation_*/*_db.*
+results/mouse/phylogenetic_validation/combined_sequences.fasta
+results/mouse/phylogenetic_validation/alignment.fasta
 !results/mouse/vgenes_predicted.fasta
 !results/mouse/vgenes_predicted_all_predictions.csv
 
@@ -75,3 +80,22 @@ notes/
 *.tmp
 *.log
 *.bak
+
+# IMGT references (too large, manually downloaded)
+data/reference/imgt_mouse/
+data/reference/ncbi_mouse/
+
+# BLAST databases
+*_db.*
+
+# Large alignment/tree files
+results/*/phylogenetic_validation/combined_sequences.fasta
+results/*/phylogenetic_validation/alignment.fasta
+results/*/validation_*/blast_results.txt
+
+# But keep summaries and trees
+!results/*/validation_*/validated.csv
+!results/*/validation_*/misclassified.csv
+!results/*/validation_*/no_match.csv
+!results/*/phylogenetic_validation/tree.nexus
+!results/*/phylogenetic_validation/tree.newick
