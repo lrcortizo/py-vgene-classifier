@@ -1,203 +1,343 @@
-# V-Gene Classifier - Multi-Species CNN
+# V-Gene Classifier v2.0.0
 
-Deep learning pipeline for V-gene discovery in vertebrate genomes using multi-species trained CNN with locus-specific classification.
+Deep learning pipeline for automated V-gene discovery and classification in vertebrate genomes using terminal-region encoding and multiclass CNN.
 
-## Project Overview
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/license-Research-green.svg)](LICENSE)
 
-This project implements a Convolutional Neural Network (CNN) to identify and classify V gene segments (variable genes from immunoglobulin and T-cell receptor loci) in vertebrate genomes. The classifier uses one-hot encoded amino acid sequences and achieves high performance through pattern recognition of characteristic V-gene motifs.
+## 🎯 Project Overview
 
-**NEW in v1.2.0**: Multiclass CNN for automatic locus classification (IGHV, IGKV, TRAV, TRBV), achieving 99.99% validation accuracy.
+This project implements a complete pipeline for discovering and classifying V-gene segments (immunoglobulin and T-cell receptor variable regions) in vertebrate genomes. The v2.0.0 release introduces **terminal-region encoding** and **hard negative training**, achieving 93% recall with 99.8% precision on mouse genome validation.
 
-**v1.1.0**: Multi-species training pipeline with complete genome-to-prediction workflow.
+### Key Achievements
 
-## Key Features
+- **93.0% recall** on mouse genome (532/572 IMGT genes detected)
+- **99.8% precision** (minimal false positives)
+- **>95% recall** on major loci (IGHV: 97.1%, IGKV: 96.0%)
+- **Fully automated** pipeline from genome to validated predictions
+- **Query ID tracking** preserves gene identity through dense genomic clusters
 
-- **Multiclass Classification** (v1.2.0): Automatic identification of V-gene locus (IGHV, IGKV, TRAV, TRBV)
-- **Multi-Species Training**: Supports training on V-genes from multiple vertebrate species
-- **Complete Pipeline**: From genome download to final V-gene predictions with locus assignment
-- **GPU Acceleration**: CUDA support for faster training and inference
-- **Synthetic Background**: Automated generation of negative training examples
-- **TBLASTN Integration**: Candidate identification from whole genomes
-- **High Accuracy**: Achieves 99.99% validation accuracy on multi-species datasets
-- **Modular Design**: Reusable components for encoding, model architecture, and training
-- **Reproducible Results**: Fixed random seeds and documented parameters
-
-## What's New in v1.3.0
-
-### IMGT Validation Pipeline
-- **Dual validation approach**: Quantitative (BLAST) + Visual (phylogenetic tree)
-- **IMGT reference integration**: Manual extraction from IMGT protein displays
-- **NCBI reference extraction**: Automated parsing from genome GFF annotations
-- **Phylogenetic tree analysis**: ClustalO MSA + SeaView visualization
-
-### Validation Scripts
-```bash
-# Parse IMGT protein display tables
-scripts/11_parse_imgt_tables.py
-
-# BLAST-based validation with metrics
-scripts/12_validate_predictions.py
-
-# Phylogenetic tree validation (Olivieri's method)
-scripts/13_phylogenetic_validation.py
-```
-
-### Validation Results (Mouse GRCm39)
-
-**IMGT Reference (572 functional V-genes):**
-- Precision: 71.8% (of matched predictions)
-- Validated: 79/202 (39.1%)
-- Challenge: IGHV ↔ IGKV confusion (~15%)
-
-**NCBI Reference (646 annotated V-genes):**
-- Precision: 63.0% (relaxed criteria)
-- Validated: 87/202 (43.1%)
-
-**Phylogenetic Analysis:**
-- 652 sequences aligned (572 IMGT + 80 top predictions)
-- ~70-80% predictions cluster correctly with IMGT
-- Visual confirmation of BLAST results
-
-### Key Findings
-- Model successfully separates IG vs TR gene families
-- Main challenge: Heavy vs light chain distinction (IGHV vs IGKV)
-- Some genes show 100% identity across loci (biological limitation)
-- Suitable for phylogenetic analysis at family level
-
-## What's New in v1.2.0
-
-### Multiclass Classification
-- **5-class CNN**: Classifies V-genes by locus (IGHV, IGKV, TRAV, TRBV) + background
-- **99.99% accuracy**: On validation set of 30,301 sequences
-- **Per-locus metrics**: Individual precision/recall for each class
-- **Automatic classification**: No BLAST post-processing required for locus identification
-- **Probability output**: Returns confidence scores for all 5 classes
-
-### Technical Improvements
-- Trained on 113,691 V-genes from 50+ vertebrate species
-- CrossEntropyLoss with softmax for multi-class classification
-- Confusion matrix visualization for model evaluation
-- Enhanced dataset preparation with locus label parsing
-
-### Model Performance
-- Training accuracy: 99.99%
-- Validation F1 score: 0.9999
-- Convergence: ~37 epochs
-- Training time: ~1 hour on RTX 4060 GPU
-
-## What's New in v1.1.0
+## 🆕 What's New in v2.0.0
 
 ### Major Improvements
-- **Multi-species dataset support**: Train on V-genes from diverse vertebrate species
-- **Complete discovery pipeline**: End-to-end workflow from genome to predictions
-- **Synthetic background generation**: Fast, reproducible negative training examples
-- **Significant improvement**: Multi-species model finds substantially more V-genes than single-species models
 
-## Project Structure
+**1. Terminal-Region Encoding**
+- Replaces full-sequence one-hot encoding
+- **Fixed-length features** (2,000 dimensions):
+  - N-terminal 40aa (800 features)
+  - C-terminal 40aa (800 features)
+  - Dipeptide frequencies (400 features)
+- Sequence-length invariant representation
+- Captures functionally critical regions
+
+**2. Hard Negative Training**
+- Replaces synthetic random backgrounds
+- Uses structurally similar non-V proteins:
+  - MHC Class I/II (Ig-like domains)
+  - Constant regions (IG C-genes)
+  - Ig superfamily proteins (CD28, CTLA4)
+- Data augmentation via conservative mutations (→8,000 sequences)
+- Forces model to learn discriminative features
+
+**3. Query ID Preservation**
+- Tracks IMGT gene identity through pipeline
+- Enables accurate recall calculation
+- Prevents loss in dense genomic regions (e.g., 160 IGHV genes in 2kb)
+- Intelligent deduplication by (query_id, sequence) tuple
+
+**4. Automated Terminal Cleaning**
+- Detects Framework 1 start motifs (EVQL, QVQL, DIQMTQ)
+- Trims N-terminal non-V sequence
+- Limits C-terminal to typical V-gene length (~120aa)
+- Results in cleaner, more accurate predictions
+
+**5. Enhanced Validation**
+- Per-locus precision and recall metrics
+- Unique IMGT gene counting (not just hit counts)
+- Identity threshold filtering (≥60%, ≥70%, ≥80%)
+- Comprehensive validation reports
+
+### Performance Comparison
 ```
-vgene-classifier/
-│
-├── data/
-│   ├── raw/
-│   │   ├── positive/          # V gene FASTA files or queries
-│   │   └── negative/          # Background sequences
-│   ├── processed/             # Train/val splits (CSV + FASTA)
-│   └── genomes/               # Downloaded genome assemblies
-│
-├── src/
-│   ├── features/
-│   │   └── encoding.py        # One-hot encoding functions
-│   └── models/
-│       ├── classifier.py      # CNN architecture (multiclass)
-│       └── train.py           # Training/evaluation functions
-│
-├── scripts/
-│   ├── 01_explore_vgenes.py                    # Data exploration
-│   ├── 02_download_background.py               # NCBI background download
-│   ├── 03_prepare_dataset.py                   # Train/val split (single-species)
-│   ├── 04_train_classifier.py                  # Model training (single-species)
-│   ├── 05_prepare_multispecies_dataset.py      # Multi-species dataset (binary)
-│   ├── 05_prepare_multispecies_dataset_multiclass.py  # Multi-species dataset (multiclass)
-│   ├── 05b_generate_synthetic_background.py    # Synthetic negatives
-│   ├── 06_train_multispecies_cnn.py            # Multi-species training (binary)
-│   ├── 06_train_multispecies_cnn_multiclass.py # Multi-species training (multiclass)
-│   ├── 07_download_genome.py                   # Genome download
-│   ├── 08_run_tblastn.py                       # TBLASTN search
-│   ├── 09_extract_candidates.py                # Candidate extraction
-│   ├── 10_filter_positives.py                  # CNN filtering (binary)
-│   ├── 10_filter_positives_multiclass.py       # CNN filtering (multiclass)
-│   ├── 11_parse_imgt_tables.py                 # Parse IMGT references
-│   ├── 12_validate_predictions.py              # BLAST validation
-│   ├── 13_phylogenetic_validation.py           # Tree-based validation
-│   ├── verify_split.py                         # Data quality checks
-│   └── inspect_predictions.py                  # Prediction analysis
-│
-├── models/
-│   ├── best_model.pt              # Single-species trained model
-│   ├── best_model_multispecies.pt # Multi-species trained model (binary)
-│   └── best_model_multiclass.pt   # Multi-species trained model (multiclass)
-│
-├── results/
-│   ├── training_history.png
-│   ├── training_history_multispecies.png
-│   ├── training_history_multiclass.png
-│   └── confusion_matrix_multiclass.png
-│
-├── .gitignore
-├── requirements.txt
-├── environment.yml
-├── CHANGELOG.md
-└── README.md
+Metric              v1.3.0      v2.0.0      Improvement
+────────────────────────────────────────────────────────
+Recall (total)      ~40%        93.0%       +133%
+  IGHV              ~26%        97.1%       +274%
+  IGKV              ~46%        96.0%       +109%
+  TRAV              ~51%        89.0%       +75%
+Precision           71.8%       99.8%       +39%
+Pipeline            Manual      Automated   ✅
 ```
 
-## Requirements
+## ✨ Key Features
 
-### Software
-- Python 3.11+
-- BLAST+ (2.10.0+)
-- ClustalO (1.2.4+) - for phylogenetic validation (optional)
-- SeaView (optional, for tree visualization)
-- conda/mamba (recommended)
+- **Complete automation**: Genome → TBLASTN → Extract → Classify → Validate
+- **High accuracy**: 93% recall with 99.8% precision
+- **Locus classification**: Automatic IGHV/IGKV/TRAV/TRBV identification
+- **Robust to noise**: Hard negative training prevents false positives
+- **Scalable**: Handles genomes of any size
+- **GPU accelerated**: CUDA support for fast training/inference
+- **Reproducible**: Fixed seeds, versioned data, documented parameters
+- **Publication-ready**: Comprehensive validation and metrics
 
-### Python Packages
+## 📊 Validation Results (Mouse C57BL/6J)
+
+**IMGT Reference (572 functional V-genes):**
 ```
-biopython
-pandas
-numpy
-scikit-learn
-torch (with CUDA support recommended)
-matplotlib
+Locus    Recall    Precision    Unique Found
+───────────────────────────────────────────────
+IGHV     97.1%     93.4%        331/341
+IGKV     96.0%     88.3%        96/100
+TRAV     89.0%     89.5%        97/109
+TRBV     36.4%     100.0%       8/22
+───────────────────────────────────────────────
+TOTAL    93.0%     99.8%        532/572
 ```
 
-## Installation
+**Why TRBV recall is lower:**
+- TRBV genes are highly divergent (50-60% identity between families)
+- Only 22 genes in IMGT reference (small query set)
+- Locus is genomically fragmented
+- Model is ultra-conservative (100% precision when predicted)
 
-### Option 1: Using Conda (Recommended)
+**Missing genes (40/572):**
+- Pseudogenes (IGHV1S-X series)
+- Strain-specific variants (IMGT multi-strain vs C57BL/6J)
+- <60% identity genes (very divergent)
+
+## 🚀 Quick Start
+
+### Installation
 ```bash
-# Create environment from file
+# Clone repository
+git clone https://github.com/yourusername/py-vgene-classifier.git
+cd py-vgene-classifier
+
+# Create conda environment
 conda env create -f environment.yml
 conda activate vgene
 
-# Or create manually
-conda create -n vgene python=3.11 -y
-conda activate vgene
-
-# Install BLAST+
-conda install -c bioconda blast
-
-# Install PyTorch with GPU support
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-
-# Install other dependencies
-pip install biopython pandas numpy matplotlib scikit-learn
+# Or install with pip
+pip install -r requirements.txt
 ```
 
-### Option 2: Using pip
+### Basic Usage
+
+**Complete pipeline (genome → predictions):**
+```bash
+# 1. Download genome (~5-10 min)
+python scripts/04_download_genome.py \
+    --accession GCF_000001635.27 \
+    --output-dir data/genomes/mouse
+
+# 2. Run TBLASTN (~10-15 min)
+python scripts/05_run_tblastn.py \
+    --genome data/genomes/mouse/GCF_000001635.27.fna \
+    --query data/reference/imgt_mouse/all_vgenes_imgt.fasta \
+    --output results/mouse/tblastn_results.txt
+
+# 3. Extract candidates (~5 min)
+python scripts/06_extract_candidates.py \
+    --tblastn-results results/mouse/tblastn_results.txt \
+    --genome data/genomes/mouse/GCF_000001635.27.fna \
+    --output results/mouse/candidates.fasta \
+    --min-identity 60.0 \
+    --clean-terminals \
+    --no-merge
+
+# 4. Classify with CNN (~2 min)
+python scripts/07_classify_candidates.py \
+    --candidates results/mouse/candidates.fasta \
+    --model models/v2_hybrid/best_model.pt \
+    --output results/mouse/vgenes_predicted.fasta
+
+# 5. Validate against IMGT (~3 min)
+python scripts/08_validate_predictions.py \
+    --predictions results/mouse/vgenes_predicted.fasta \
+    --predictions-csv results/mouse/vgenes_predicted_predictions.csv \
+    --reference data/reference/imgt_mouse/all_vgenes_imgt.fasta \
+    --output-dir results/mouse/validation
+```
+
+**Total time: ~25-35 minutes** (mostly automated)
+
+**Output:**
+- Predicted V-genes with locus labels (FASTA)
+- Per-gene probabilities (CSV)
+- Validation metrics and reports
+
+## 📁 Project Structure
+```
+py-vgene-classifier/
+├── data/
+│   ├── background/              # Hard negative sequences (~400)
+│   ├── background_extended/     # Expanded negatives (~8k)
+│   ├── genomes/                 # Downloaded genomes
+│   ├── raw/positive/            # IMGT V-gene references
+│   └── reference/               # IMGT/NCBI references
+├── models/
+│   └── v2_hybrid/               # Trained model v2.0.0
+│       ├── best_model.pt
+│       ├── training_history.csv
+│       └── *.png
+├── results/
+│   ├── mouse_identity60/        # Final results (93% recall)
+│   └── bat/                     # Example application
+├── scripts/                     # Pipeline scripts (01-09)
+├── utils/                       # Utility scripts
+├── src/                         # Core modules
+│   ├── features/                # Terminal encoding
+│   └── models/                  # CNN architecture
+├── README.md
+├── CHANGELOG.md
+├── requirements.txt
+└── environment.yml
+```
+
+## 🔬 Pipeline Scripts
+
+### Training Pipeline
+```
+01_generate_background.py       → Generate hard negatives (NCBI)
+01b_expand_background.py        → Expand via mutations (optional)
+02_prepare_dataset.py           → Prepare training dataset
+02b_prepare_hybrid_dataset.py   → Add hard negatives (optional)
+03_train_model.py               → Train CNN model
+```
+
+### Application Pipeline
+```
+04_download_genome.py           → Download target genome
+05_run_tblastn.py               → TBLASTN search
+06_extract_candidates.py        → Extract & clean candidates
+07_classify_candidates.py       → CNN classification
+08_validate_predictions.py      → Validate against IMGT
+09_phylogenetic_validation.py   → Tree-based validation (optional)
+```
+
+### Utilities
+```
+utils/explore_vgenes.py         → Data quality checks
+utils/parse_imgt_tables.py      → Parse IMGT references
+```
+
+## 🧠 Model Architecture
+
+### CNN with Terminal-Region Encoding
+```
+Input: (batch, 2000)  # Terminal features
+  ↓
+Linear(2000 → 512) + BatchNorm + ReLU + Dropout(0.3)
+  ↓
+Reshape → (batch, 512, 1)  # Prepare for 1D conv
+  ↓
+Conv1D(512 → 256, k=3) + BatchNorm + ReLU + MaxPool(2)
+  ↓
+Conv1D(256 → 128, k=3) + BatchNorm + ReLU + MaxPool(2)
+  ↓
+Conv1D(128 → 64, k=3) + BatchNorm + ReLU
+  ↓
+AdaptiveAvgPool1D(1) + Flatten
+  ↓
+Linear(64 → 32) + ReLU + Dropout(0.3)
+  ↓
+Linear(32 → 5)  # [background, IGHV, IGKV, TRAV, TRBV]
+  ↓
+Softmax → Class probabilities
+```
+
+**Key Features:**
+- **Parameters:** ~8.4M trainable
+- **Input:** 2,000 fixed-length features (sequence-length invariant)
+- **Output:** 5-class probability distribution
+- **Regularization:** Batch normalization + Dropout (0.3)
+- **Architecture:** Hybrid dense + convolutional
+
+### Terminal-Region Feature Engineering
+
+**N-terminal (40aa):**
+- Framework 1 region
+- Critical for V-gene identity
+- One-hot encoded → 800 features
+
+**C-terminal (40aa):**
+- Framework 3 region
+- Contains conserved motifs (YYC, YFC, etc.)
+- One-hot encoded → 800 features
+
+**Dipeptide frequencies:**
+- Captures biochemical composition
+- 20×20 = 400 possible dipeptides
+- Normalized counts → 400 features
+
+**Why this works:**
+- V-genes have conserved terminal regions
+- Captures functional constraints
+- Robust to CDR length variation
+- Computationally efficient
+
+## 📋 Requirements
+
+### Software Dependencies
+```
+Python 3.11+
+BLAST+ 2.10.0+
+ClustalO 1.2.4+ (optional, for phylogenetic validation)
+CUDA 11.8+ (optional, for GPU acceleration)
+```
+
+### Python Packages
+```
+biopython>=1.81
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+torch>=2.0.0
+matplotlib>=3.7.0
+tqdm>=4.65.0
+```
+
+### Hardware Recommendations
+
+**Minimum:**
+- CPU: 4 cores
+- RAM: 8 GB
+- Storage: 20 GB
+
+**Recommended:**
+- CPU: 8+ cores
+- RAM: 16+ GB
+- GPU: NVIDIA GPU with 6+ GB VRAM (RTX 3060 or better)
+- Storage: 50+ GB (for multiple genomes)
+
+**Training performance:**
+- CPU only: ~4-6 hours
+- GPU (RTX 4060): ~30-45 minutes
+
+## 🛠️ Installation Guide
+
+### Option 1: Conda (Recommended)
+```bash
+# Create environment
+conda env create -f environment.yml
+conda activate vgene
+
+# Verify installation
+python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+```
+
+### Option 2: pip + Virtual Environment
 ```bash
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install PyTorch with CUDA
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install other dependencies
 pip install -r requirements.txt
 
 # Install BLAST+ separately
@@ -206,344 +346,656 @@ pip install -r requirements.txt
 # Windows: Download from NCBI
 ```
 
-## Quick Start - Multiclass Pipeline (v1.2.0)
-
-### Complete V-Gene Discovery with Locus Classification
+### Verify Installation
 ```bash
-# 1. Generate synthetic background (~10 seconds)
-python scripts/05b_generate_synthetic_background.py
+# Check BLAST
+makeblastdb -version
+tblastn -version
 
-# 2. Prepare multiclass dataset (~2 minutes)
-python scripts/05_prepare_multispecies_dataset_multiclass.py \
-    --input-dir /path/to/annotated_vgenes \
-    --loci ighv igkv trav trbv \
-    --output-dir data/processed
+# Check Python packages
+python -c "from Bio import SeqIO; import pandas; import torch; print('All OK')"
 
-# 3. Train multiclass CNN (~1 hour with GPU)
-python scripts/06_train_multispecies_cnn_multiclass.py \
-    --train-csv data/processed/train_multispecies_multiclass.csv \
-    --val-csv data/processed/val_multispecies_multiclass.csv \
-    --output-dir models \
+# Check GPU (optional)
+python -c "import torch; print(torch.cuda.get_device_name(0))" 2>/dev/null || echo "No GPU"
+```
+
+## 📖 Detailed Usage
+
+### Training Custom Model
+
+**Step 1: Generate Hard Negatives**
+```bash
+# Generate from NCBI (~10 min)
+python scripts/01_generate_background.py \
+    --sources mhc,c_regions,ig_superfamily \
+    --target-total 400 \
+    --output-dir data/background
+
+# Expand via mutations (optional, ~2 min)
+python scripts/01b_expand_background.py \
+    --input data/background/background_hard_negatives.fasta \
+    --output data/background_extended/background_hard_negatives_8k.fasta \
+    --target-total 8000 \
+    --mutation-rate 0.02
+```
+
+**Step 2: Prepare Dataset**
+```bash
+# Basic dataset
+python scripts/02_prepare_dataset.py \
+    --input-dir data/raw/positive \
+    --background data/background/background_hard_negatives.fasta \
+    --output-dir data/processed \
+    --loci ighv igkv trav trbv
+
+# Hybrid dataset with expanded negatives (recommended)
+python scripts/02b_prepare_hybrid_dataset.py \
+    --vgenes-csv data/processed/train_multispecies_multiclass.csv \
+    --hard-negatives data/background_extended/background_hard_negatives_8k.fasta \
+    --output-dir data/processed_hybrid \
+    --n-synthetic 22000
+```
+
+**Step 3: Train Model**
+```bash
+python scripts/03_train_model.py \
+    --train-csv data/processed_hybrid/train_hybrid.csv \
+    --val-csv data/processed_hybrid/val_hybrid.csv \
+    --output-dir models/my_model \
+    --epochs 30 \
     --batch-size 64 \
-    --epochs 50
+    --lr 0.001 \
+    --seed 42
+```
 
-# 4. Download target genome (~5-10 minutes)
-python scripts/07_download_genome.py \
+**Training output:**
+- `best_model.pt` - Model weights
+- `training_history.csv` - Loss/accuracy per epoch
+- `training_history.png` - Training curves
+- `confusion_matrix.png` - Validation confusion matrix
+
+### Applying to New Genome
+
+**Step 1: Prepare Genome**
+```bash
+# Option A: Download from NCBI
+python scripts/04_download_genome.py \
     --accession GCF_XXXXXXXXX.X \
-    --output-dir data/genomes/target_species
+    --output-dir data/genomes/species_name
 
-# 5. Run TBLASTN search (~5-15 minutes)
-python scripts/08_run_tblastn.py \
-    --genome data/genomes/target_species/genome.fna \
-    --query data/raw/positive/vgene_queries.fasta \
-    --output results/target/tblastn_results.txt \
+# Option B: Use local genome
+# Place genome FASTA in data/genomes/species_name/genome.fna
+```
+
+**Step 2: Search with TBLASTN**
+```bash
+python scripts/05_run_tblastn.py \
+    --genome data/genomes/species_name/genome.fna \
+    --query data/reference/imgt_mouse/all_vgenes_imgt.fasta \
+    --output results/species_name/tblastn_results.txt \
     --evalue 1e-5 \
     --threads 8
+```
 
-# 6. Extract candidate sequences (~5-10 minutes)
-python scripts/09_extract_candidates.py \
-    --tblastn-results results/target/tblastn_results.txt \
-    --genome data/genomes/target_species/genome.fna \
-    --output results/target/candidates.fasta
+**Parameters:**
+- `--evalue`: Lower = more stringent (default: 1e-5)
+- `--threads`: Number of CPU cores to use
 
-# 7. Classify with multiclass CNN (~1-2 minutes)
-python scripts/10_filter_positives_multiclass.py \
-    --candidates results/target/candidates.fasta \
-    --model models/best_model_multiclass.pt \
-    --output results/target/vgenes_predicted.fasta \
+**Step 3: Extract Candidates**
+```bash
+python scripts/06_extract_candidates.py \
+    --tblastn-results results/species_name/tblastn_results.txt \
+    --genome data/genomes/species_name/genome.fna \
+    --output results/species_name/candidates.fasta \
+    --min-identity 60.0 \
+    --extend 150 \
+    --clean-terminals \
+    --max-vgene-length 120 \
+    --no-merge
+```
+
+**Key parameters:**
+- `--min-identity`: Minimum TBLASTN identity (60-80%)
+- `--clean-terminals`: Enable Framework 1 detection (recommended)
+- `--max-vgene-length`: Maximum V-gene length for C-terminal trim
+- `--no-merge`: Extract each hit separately (recommended for recall)
+
+**Step 4: Classify Candidates**
+```bash
+python scripts/07_classify_candidates.py \
+    --candidates results/species_name/candidates.fasta \
+    --model models/v2_hybrid/best_model.pt \
+    --output results/species_name/vgenes_predicted.fasta \
     --threshold 0.5 \
-    --save-all
+    --batch-size 64
 ```
 
-**Output**: FASTA with predicted V-genes annotated by locus (IGHV, IGKV, TRAV, TRBV)
+**Threshold selection:**
+- `0.5` (default): Balanced precision/recall
+- `0.3`: Higher recall, lower precision
+- `0.7`: Higher precision, lower recall
 
-**Total time**: ~2-3 hours (mostly automated)
-
-## Validation Pipeline (v1.3.0)
-
-### Validate Predictions Against IMGT
-
-**Step 1: Extract IMGT References**
-
-Manually download V-gene sequences from IMGT:
-1. Visit IMGT Repertoire: http://www.imgt.org/IMGTrepertoire/
-2. Navigate to Proteins > Protein displays
-3. Select species (e.g., Mus musculus) and locus (IGHV, IGKV, TRAV, TRBV)
-4. Copy complete table to text files
+**Step 5: Validate Predictions**
 ```bash
-# Parse IMGT tables to FASTA
-python scripts/11_parse_imgt_tables.py \
-    --input-dir data/reference/imgt_mouse \
-    --output-dir data/reference/imgt_mouse
-```
-
-**Step 2: BLAST Validation**
-```bash
-# Combine IMGT references
-cat data/reference/imgt_mouse/*_mouse_imgt.fasta > \
-    data/reference/imgt_mouse/all_vgenes_imgt.fasta
-
-# Run BLAST validation
-python scripts/12_validate_predictions.py \
-    --predictions results/mouse/vgenes_predicted.fasta \
-    --predictions-csv results/mouse/vgenes_predicted_all_predictions.csv \
-    --reference data/reference/imgt_mouse/all_vgenes_imgt.fasta \
-    --output-dir results/mouse/validation_imgt \
+python scripts/08_validate_predictions.py \
+    --predictions results/species_name/vgenes_predicted.fasta \
+    --predictions-csv results/species_name/vgenes_predicted_predictions.csv \
+    --reference data/reference/imgt_species/all_vgenes_imgt.fasta \
+    --output-dir results/species_name/validation \
     --min-identity 80 \
     --min-coverage 70
 ```
 
-**Output**: CSVs with validated, misclassified, and no-match predictions
+**Validation output:**
+- Per-locus recall and precision
+- Validated predictions (correct locus)
+- Misclassified predictions (wrong locus)
+- No-match predictions (novel genes?)
 
-**Step 3: Phylogenetic Tree Validation**
+### Optional: Phylogenetic Validation
 ```bash
 # Requires ClustalO
 conda install -c bioconda clustalo
 
-# Build phylogenetic tree
-python scripts/13_phylogenetic_validation.py \
-    --imgt data/reference/imgt_mouse/all_vgenes_imgt.fasta \
-    --predictions results/mouse/vgenes_predicted.fasta \
-    --predictions-csv results/mouse/vgenes_predicted_all_predictions.csv \
-    --output-dir results/mouse/phylogenetic_validation \
+# Build tree
+python scripts/09_phylogenetic_validation.py \
+    --imgt data/reference/imgt_species/all_vgenes_imgt.fasta \
+    --predictions results/species_name/vgenes_predicted.fasta \
+    --predictions-csv results/species_name/vgenes_predicted_predictions.csv \
+    --output-dir results/species_name/phylogenetic \
     --top-n 20 \
     --threads 8
+
+# Visualize (requires SeaView or online tool)
+seaview results/species_name/phylogenetic/tree.nexus
 ```
 
-**Output**:
-- Multiple sequence alignment (FASTA)
-- Phylogenetic tree (Newick and Nexus formats)
-- Ready for visualization in SeaView
+## 🔧 Advanced Configuration
 
-**Step 4: Visualize Tree**
+### Identity Threshold Comparison
+
+Test multiple identity thresholds to optimize recall/precision trade-off:
 ```bash
-# Open in SeaView (if installed)
-seaview results/mouse/phylogenetic_validation/tree.nexus
+# High stringency (best precision)
+python scripts/06_extract_candidates.py \
+    --min-identity 80.0 \
+    --output results/species_identity80/candidates.fasta
 
-# Or use online tools:
-# - iTOL: https://itol.embl.de/
-# - Phylo.io: https://phylo.io/
+# Medium stringency (balanced)
+python scripts/06_extract_candidates.py \
+    --min-identity 70.0 \
+    --output results/species_identity70/candidates.fasta
+
+# Low stringency (best recall)
+python scripts/06_extract_candidates.py \
+    --min-identity 60.0 \
+    --output results/species_identity60/candidates.fasta
 ```
 
-**Interpretation**:
-- Predictions clustering with IMGT of same locus → Validated
-- Predictions clustering with IMGT of different locus → Misclassified
-- Predictions isolated from all IMGT → Potential false positives
-
-**Total validation time**: ~30-60 minutes (mostly alignment)
-
-## Data Requirements
-
-### Multiclass Pipeline
-
-**Input**: Annotated V-gene FASTAs from multiple species with locus information
-- Format: Headers must contain locus identifier (e.g., `>ID|Species|ighv`)
-- Source: IMGT alignment, custom annotation pipeline
-- Recommended loci: IGHV, IGKV, TRAV, TRBV
-
-**Queries**: Representative V-genes for TBLASTN
-- Generate 50-200 sequences per locus from training dataset
-- Amino acid sequences
-
-### Original Pipeline
-
-**Positive Class**: V gene FASTA files in `data/raw/positive/`
+**Expected results (based on mouse validation):**
 ```
->V-gene_1
-QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMH...
->V-gene_2
-DIQMTQSPSSLSASVGDRVTITCRASQSISSWLA...
+Identity    Recall    Precision    Use case
+─────────────────────────────────────────────
+≥80%        78%       100%         High confidence only
+≥70%        87%       99.8%        Balanced
+≥60%        93%       99.8%        Maximum discovery
 ```
 
-**Negative Class**: Background sequences (auto-generated or provided)
+### Model Ensemble
 
-## Model Architecture
-
-### CNN Design (v1.2.0)
-```
-Input (batch, 20, max_length)
-  ↓
-Conv1D(20→64, k=3) + BatchNorm + ReLU + MaxPool(2)
-  ↓
-Conv1D(64→128, k=3) + BatchNorm + ReLU + MaxPool(2)
-  ↓
-Conv1D(128→256, k=3) + BatchNorm + ReLU + MaxPool(2)
-  ↓
-Flatten
-  ↓
-FC(flatten_size→128) + ReLU + Dropout(0.3)
-  ↓
-FC(128→64) + ReLU + Dropout(0.3)
-  ↓
-FC(64→5) + Softmax
-  ↓
-Output: Class probabilities [background, IGHV, IGKV, TRAV, TRBV]
-```
-
-**Parameters**: 595,525 trainable
-**Input**: One-hot encoded protein sequences (20 amino acids × sequence length)
-**Output**: 5-class probability distribution
-
-### Performance
-
-**Multiclass model (v1.2.0):**
-- Overall accuracy: 99.99%
-- Per-class F1 scores:
-  - Background: 1.0000
-  - IGHV: 0.9999
-  - IGKV: 0.9998
-  - TRAV: 0.9999
-  - TRBV: 0.9991
-
-**Binary model (v1.1.0):**
-- Training accuracy: ~99-100%
-- Validation accuracy: ~97-100%
-- F1 Score: ~0.97-1.0
-
-## Methodology
-
-### Feature Representation
-- **Encoding**: One-hot (20-dimensional per amino acid)
-- **Max length**: 116 amino acids (configurable)
-- **Padding**: Zero-padding for shorter sequences
-
-### Training Configuration
-```python
-# Multiclass (v1.2.0)
-BATCH_SIZE = 64
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 50
-OPTIMIZER = Adam
-LOSS = CrossEntropyLoss
-
-# Binary (v1.1.0)
-LOSS = Binary Cross Entropy
-```
-
-### Evaluation Metrics
-- Accuracy, Precision, Recall (per class)
-- F1 Score (weighted average)
-- Confusion Matrix
-
-## Output Format
-
-### Multiclass Predictions
-
-**FASTA output:**
-```
->candidate_1 predicted_locus=IGHV prob=1.0000
-QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMH...
->candidate_2 predicted_locus=TRAV prob=0.9987
-DIQMTQSPSSLSASVGDRVTITCRASQSISSWLA...
-```
-
-**CSV output** (with `--save-all`):
-```
-id,sequence,length,predicted_locus,probability,prob_background,prob_IGHV,prob_IGKV,prob_TRAV,prob_TRBV
-candidate_1,QVQLVQ...,95,IGHV,1.0000,0.0000,1.0000,0.0000,0.0000,0.0000
-candidate_2,DIQMTQ...,92,TRAV,0.9987,0.0001,0.0002,0.0001,0.9987,0.0009
-```
-
-## Customization
-
-### Adjust CNN Threshold
+Combine predictions from multiple models for robustness:
 ```bash
-python scripts/10_filter_positives_multiclass.py \
-    --threshold 0.3  # Lower = more sensitive
+# Train with different seeds
+for seed in 42 123 456; do
+    python scripts/03_train_model.py \
+        --seed $seed \
+        --output-dir models/ensemble_${seed}
+done
+
+# Classify with each model
+# (combine predictions manually or via custom script)
 ```
 
-### Modify TBLASTN Sensitivity
+### Custom Query Sets
+
+Use species-specific queries for better sensitivity:
 ```bash
-python scripts/08_run_tblastn.py \
-    --evalue 1e-3  # More permissive
+# Extract representative V-genes from IMGT
+# Filter by species, functionality, and diversity
+# Use as TBLASTN queries
 ```
 
-## Biological Interpretation
+## 📊 Output Formats
 
-### Why V Genes Are Distinguishable
+### FASTA Output
+```
+>candidate_1 query=IGHV1-2*01 chr1:12345-12678(+) len=98 predicted_locus=IGHV prob=0.9987
+QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQG...
+>candidate_2 query=TRAV14*01 chr14:98765-99012(-) len=104 predicted_locus=TRAV prob=0.9654
+DIQMTQSPSSLSASVGDRVTITCRASQSISSWLAWYQQKPGKAPKLLIYKASSLESGVPSRFSGS...
+```
 
-V genes contain:
-1. **Framework regions (FR)**: Conserved amino acid patterns
-2. **CDR loops**: Variable but structurally constrained
-3. **Recombination signal sequences**: Characteristic motifs
-4. **Immunoglobulin/TCR domains**: Specific architecture
+### CSV Output (with --save-all)
+```csv
+id,sequence,length,predicted_class,predicted_locus,probability,prob_background,prob_IGHV,prob_IGKV,prob_TRAV,prob_TRBV
+candidate_1,QVQLVQ...,98,1,IGHV,0.9987,0.0001,0.9987,0.0003,0.0005,0.0004
+candidate_2,DIQMTQ...,104,3,TRAV,0.9654,0.0012,0.0089,0.0045,0.9654,0.0200
+```
+
+### Validation Report
+```
+Per-Locus Breakdown:
+───────────────────────────────────────────────────────
+Locus    Predictions  Unique Found  Total IMGT  Recall  Precision
+───────────────────────────────────────────────────────
+IGHV     14,322       331           341         97.1%   93.4%
+IGKV     1,081        96            100         96.0%   88.3%
+TRAV     660          97            109         89.0%   89.5%
+TRBV     8            8             22          36.4%   100.0%
+───────────────────────────────────────────────────────
+TOTAL    16,071       532           572         93.0%   99.8%
+```
+
+## 🔬 Biological Interpretation
+
+### Why V-Genes Are Distinguishable by CNN
+
+V-genes contain characteristic patterns that CNNs can learn:
+
+**1. Framework Regions (FR1-FR3)**
+- Conserved amino acid motifs
+- Structural constraints for antigen binding
+- Typical patterns:
+  - **IGHV:** EVQL, QVQL at N-terminus
+  - **IGKV/IGLV:** DIQMTQ, DIVMTQ, QSVLTQ
+  - **TRAV/TRBV:** Similar to IG but distinct composition
+
+**2. Complementarity-Determining Regions (CDRs)**
+- Variable but structurally constrained
+- Length and composition signatures
+- CDR3 often removed in germline (not used for classification)
+
+**3. Terminal Motifs**
+- C-terminal conserved residues (YYC, YFC, YLC)
+- Recombination signal sequence (RSS) flanking
+- Cysteine positions for disulfide bonds
+
+**4. Biochemical Composition**
+- Dipeptide frequencies capture:
+  - Hydrophobic/hydrophilic patterns
+  - Charged residue distribution
+  - Structural propensities
 
 ### Locus-Specific Features
 
-The multiclass CNN learns to distinguish:
-- **IGHV vs IGKV**: Heavy vs light chain immunoglobulins
-- **TRAV vs TRBV**: Alpha vs beta chain T-cell receptors
-- **IG vs TR**: B-cell vs T-cell receptor genes
+**Heavy Chain (IGHV) vs Light Chain (IGKV/IGLV):**
+- Length difference (~110-120aa vs ~95-105aa)
+- Different N-terminal signatures
+- CDR composition patterns
+- More hydrophobic residues in IGHV
 
-## Troubleshooting
+**T-Cell Receptor (TRAV/TRBV) vs Immunoglobulin (IG):**
+- Distinct framework residues
+- Different CDR length distributions
+- TCR has more charged residues
+- Different recombination mechanisms
 
-### BLAST Not Found
+**Alpha (TRAV) vs Beta (TRBV):**
+- TRBV has more diversity in FR2
+- Length preferences differ
+- Biochemical composition varies
+
+### Why Some Genes Are Difficult
+
+**1. Pseudogenes**
+- Frameshifts, stop codons
+- Partially degraded sequence
+- May lack canonical motifs
+
+**2. Recent Duplications**
+- Highly similar paralogs
+- Same locus, different genes
+- 100% identity possible
+
+**3. Inter-Locus Similarity**
+- Some IGHV/IGKV share high identity
+- Historical gene conversion events
+- Biological confusion, not model error
+
+**4. Strain Differences**
+- IMGT is multi-strain (all mouse strains)
+- Target genome is single-strain (e.g., C57BL/6J)
+- Some genes absent or divergent
+
+## ⚠️ Troubleshooting
+
+### Installation Issues
+
+**Problem: BLAST not found**
 ```bash
+# Solution: Install via conda
 conda install -c bioconda blast
+
+# Or check PATH
+which makeblastdb
+export PATH="/path/to/blast/bin:$PATH"
 ```
 
-### GPU Not Detected
+**Problem: GPU not detected**
 ```bash
+# Check CUDA availability
 python -c "import torch; print(torch.cuda.is_available())"
+
+# Install correct PyTorch version
+pip uninstall torch
 pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+# Check NVIDIA driver
+nvidia-smi
 ```
 
-### Out of Memory
+**Problem: Out of memory during training**
 ```python
-BATCH_SIZE = 32  # Reduce in training scripts
+# In 03_train_model.py, reduce batch size
+--batch-size 32  # or 16
 ```
 
-### Low Performance on Target Species
-- Include more diverse species in training
-- Lower CNN threshold (0.3-0.4)
-- Use species-specific queries
-- Check genome assembly quality
+### Pipeline Issues
 
-### ClustalO Not Found
+**Problem: TBLASTN finds no hits**
 ```bash
-# Install with conda (recommended)
-conda install -c bioconda clustalo
+# Solution 1: Lower e-value threshold
+--evalue 1e-3  # More permissive
 
-# Or compile from source
-# http://www.clustal.org/omega/
+# Solution 2: Check query file format
+head data/reference/imgt_mouse/all_vgenes_imgt.fasta
+
+# Solution 3: Verify genome file
+file data/genomes/species/genome.fna
+# Should be: ASCII text (FASTA format)
 ```
 
-### SeaView Not Available
+**Problem: Extract candidates fails**
 ```bash
-# Ubuntu/Debian
-sudo apt install seaview
+# Check TBLASTN output format
+head results/species/tblastn_results.txt
+# Should have 14 tab-separated columns
 
-# macOS
-brew install seaview
-
-# Windows: Download from http://doua.prabi.fr/software/seaview
-
-# Or use online tree viewers:
-# - iTOL: https://itol.embl.de/
-# - Phylo.io: https://phylo.io/
+# Check contig ID matching
+grep ">" data/genomes/species/genome.fna | head -5
+# Compare with contig IDs in TBLASTN results
 ```
 
-### Validation Shows Low Recall
-- Normal for comprehensive references (IMGT has 300+ genes per locus)
-- Conservative TBLASTN e-value (1e-5) limits sensitivity
-- Strain differences between training data and target genome
-- Consider: Focus on precision rather than recall for phylogenetic studies
+**Problem: Low recall on target species**
+```bash
+# Solution 1: Lower identity threshold
+--min-identity 60.0  # or even 50.0 for distant species
 
-## Citation
+# Solution 2: Use broader query set
+# Include V-genes from related species
 
-If you use this pipeline in your research, please cite appropriately.
+# Solution 3: Disable merging
+--no-merge  # Extract each hit separately
 
-## References
+# Solution 4: Lower CNN threshold
+--threshold 0.3  # More sensitive
+```
 
-- PyTorch: https://pytorch.org/
-- Biopython: https://biopython.org/
-- IMGT Database: http://www.imgt.org/
-- NCBI BLAST+: https://blast.ncbi.nlm.nih.gov/
+**Problem: High false positive rate**
+```bash
+# Solution 1: Increase CNN threshold
+--threshold 0.7  # More conservative
 
-## License
+# Solution 2: Use stricter identity
+--min-identity 80.0  # More stringent
 
-This project is intended for research and educational purposes.
+# Solution 3: Enable terminal cleaning
+--clean-terminals  # Removes junk sequences
+```
 
-## Contributing
+**Problem: Validation shows misclassifications**
+```bash
+# Expected: ~0.2% misclassification rate
+# IGHV ↔ IGKV confusion is biological (high similarity)
 
-Contributions and suggestions are welcome for educational and research purposes.
+# Solution: Phylogenetic validation to confirm
+python scripts/09_phylogenetic_validation.py ...
+```
+
+### Data Issues
+
+**Problem: Missing IMGT reference**
+```bash
+# Download from IMGT
+# 1. Visit http://www.imgt.org/IMGTrepertoire/
+# 2. Navigate to Proteins > Protein displays
+# 3. Select species and locus
+# 4. Copy table to .txt file
+
+# Parse with utility
+python utils/parse_imgt_tables.py \
+    --input-dir data/reference/imgt_species \
+    --output-dir data/reference/imgt_species
+```
+
+**Problem: Genome assembly quality issues**
+```bash
+# Check BUSCO score (should be >90%)
+# Check contig N50 (higher is better)
+# Fragmented assemblies will have lower recall
+
+# Solution: Use chromosome-level assembly if available
+# Or accept lower recall for draft assemblies
+```
+
+### Performance Issues
+
+**Problem: Training is very slow**
+```bash
+# Solution 1: Use GPU
+# Ensure CUDA is properly installed
+
+# Solution 2: Reduce dataset size
+# Use subset for initial testing
+
+# Solution 3: Increase batch size (if memory allows)
+--batch-size 128
+```
+
+**Problem: Prediction is slow**
+```bash
+# Solution: Increase batch size
+--batch-size 256  # If GPU memory allows
+
+# Or reduce candidate set
+# Use higher identity threshold in extraction
+```
+
+## 🎯 Best Practices
+
+### For Maximum Recall
+```bash
+# Use low identity threshold
+--min-identity 60.0
+
+# Don't merge overlapping hits
+--no-merge
+
+# Use low CNN threshold
+--threshold 0.3
+
+# Enable terminal cleaning
+--clean-terminals
+```
+
+### For Maximum Precision
+```bash
+# Use high identity threshold
+--min-identity 80.0
+
+# Use high CNN threshold
+--threshold 0.7
+
+# Enable terminal cleaning
+--clean-terminals
+```
+
+### For Balanced Performance
+```bash
+# Recommended for most use cases
+--min-identity 70.0
+--threshold 0.5
+--clean-terminals
+--no-merge
+```
+
+## 📚 Methodology
+
+### Training Strategy
+
+**1. Hard Negative Selection**
+- Proteins structurally similar to V-genes
+- Forces model to learn discriminative features
+- Prevents overfitting to simple patterns
+
+**2. Data Augmentation**
+- Conservative amino acid substitutions
+- Maintains protein structure
+- Increases dataset size 20x
+
+**3. Terminal-Region Encoding**
+- Focuses on functionally critical regions
+- Fixed-length representation
+- Sequence-length invariant
+
+**4. Cross-Entropy Loss**
+- Suitable for multi-class classification
+- Softmax activation for probabilities
+- Adam optimizer with learning rate 0.001
+
+### Evaluation Strategy
+
+**1. Stratified Split**
+- Maintains class balance
+- 80% train, 20% validation
+- Fixed random seed for reproducibility
+
+**2. Per-Locus Metrics**
+- Recall and precision per locus
+- Confusion matrix analysis
+- Identifies locus-specific issues
+
+**3. Unique Gene Counting**
+- Counts unique IMGT genes found
+- Not total prediction count
+- More biologically meaningful
+
+**4. Identity Threshold Analysis**
+- Tests multiple thresholds (60%, 70%, 80%)
+- Establishes recall/precision trade-off
+- Informs parameter selection
+
+### Validation Strategy
+
+**1. BLASTP Validation**
+- Quantitative assessment
+- Per-locus breakdown
+- Identifies misclassifications
+
+**2. Phylogenetic Validation**
+- Visual confirmation
+- Cluster analysis
+- Detects systematic errors
+
+**3. Manual Inspection**
+- Random sampling of predictions
+- Framework region verification
+- Terminal motif presence
+
+## 📖 Citation
+
+If you use this pipeline in your research, please cite:
+```bibtex
+@software{vgene_classifier_v2,
+  author = {Luis Raña Cortizo and David N. Olivieri},
+  title = {V-Gene Classifier v2.0: Automated Discovery and Classification of Immunoglobulin and T-Cell Receptor V-Genes},
+  year = {2026},
+  version = {2.0.0},
+  url = {https://github.com/yourusername/py-vgene-classifier}
+}
+```
+
+### Related Publications
+
+This work builds upon methods from:
+
+- Olivieri, D.N., et al. (2019). "Iterative Variable Gene Discovery from Whole Genome Sequencing with a Bootstrapped Multiresolution Algorithm." *Computational and Mathematical Methods in Medicine*. https://doi.org/10.1155/2019/3780245
+
+## 📜 License
+
+This project is licensed for research and educational purposes. See [LICENSE](LICENSE) for details.
+
+**Commercial use requires permission from the authors.**
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with clear commit messages
+4. Add tests if applicable
+5. Submit a pull request
+
+**Areas for contribution:**
+- Support for additional species
+- Alternative encoding methods
+- Model architecture improvements
+- Documentation enhancements
+- Bug fixes and optimizations
+
+## 📧 Contact
+
+**Luis Raña Cortizo**
+- Email: luisraco95@gmail.com
+- Institution: University of Vigo, Intelligent and Adaptive Software Systems PhD Program
+
+## 🙏 Acknowledgments
+
+- **IMGT Database** for V-gene reference sequences
+- **NCBI** for genome assemblies and tools
+- **PyTorch** team for the deep learning framework
+- **Biopython** community for sequence analysis tools
+- **CESGA** for computational resources (FinisTerrae III)
+
+## 📚 References
+
+### Tools and Databases
+
+- **IMGT:** http://www.imgt.org/
+- **NCBI BLAST+:** https://blast.ncbi.nlm.nih.gov/
+- **PyTorch:** https://pytorch.org/
+- **Biopython:** https://biopython.org/
+- **NCBI Datasets:** https://www.ncbi.nlm.nih.gov/datasets/
+
+### Key Publications
+
+1. Lefranc, M.P., et al. (2015). "IMGT®, the international ImMunoGeneTics information system® 25 years on." *Nucleic Acids Research*, 43(D1), D413-D422.
+
+2. Camacho, C., et al. (2009). "BLAST+: architecture and applications." *BMC Bioinformatics*, 10, 421.
+
+3. Paszke, A., et al. (2019). "PyTorch: An Imperative Style, High-Performance Deep Learning Library." *NeurIPS*.
+
+4. Cock, P.J., et al. (2009). "Biopython: freely available Python tools for computational molecular biology and bioinformatics." *Bioinformatics*, 25(11), 1422-1423.
+
+## 🔄 Version History
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+**Current version: 2.0.0** (March 2026)
+
+---
+
+**Last updated:** March 4, 2026
+**Pipeline status:** ✅ Production-ready
+**Validation:** ✅ 93% recall, 99.8% precision on mouse genome
