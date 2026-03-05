@@ -1,101 +1,152 @@
+# ═══════════════════════════════════════════════════════════════
+# V-Gene Classifier v2.0.0 - Git Ignore Configuration
+# ═══════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────
 # Python
+# ───────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 *.egg-info/
 dist/
 build/
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
 
-# Data (large files, except specific multiclass files)
-data/raw/
-!data/raw/positive/
-data/raw/positive/*
-!data/raw/positive/multispecies_queries.fasta
-data/processed/
-!data/processed/train_multispecies_multiclass.csv
-!data/processed/val_multispecies_multiclass.csv
+# ───────────────────────────────────────────────────────────────
+# Data - Genomes and large sequence files
+# ───────────────────────────────────────────────────────────────
+# Genomes (very large, >1GB each)
 data/genomes/
+
+# IMGT/NCBI references (manual download required)
+data/reference/imgt_*/
+data/reference/ncbi_*/
+
+# FASTA/FASTQ files (general exclusion)
 *.fasta
 *.fastq
 *.fq
 *.fa
-!data/raw/positive/multispecies_queries.fasta
+*.fna
 
-# Trained models (except multiclass model)
+# EXCEPTIONS: Keep essential small files
+!data/raw/positive/*.fasta
+!data/background/*.fasta
+!data/background_extended/*.fasta
+
+# ───────────────────────────────────────────────────────────────
+# Trained models
+# ───────────────────────────────────────────────────────────────
+# Ignore all models (large files, ~33MB each)
 models/*.pt
 models/*.pth
-!models/best_model_multiclass.pt
 
-# Results (exclude large files, keep summaries and key outputs)
-results/*/
-!results/.gitkeep
+# EXCEPTION: Keep final v2.0.0 model
+!models/v2_hybrid/
+models/v2_hybrid/*.pt
+!models/v2_hybrid/best_model.pt
+
+# ───────────────────────────────────────────────────────────────
+# Results - Large intermediate files
+# ───────────────────────────────────────────────────────────────
+# TBLASTN outputs (can be very large)
+results/*/tblastn_results.txt
+
+# Unclassified candidates (large)
+results/*/candidates.fasta
+
+# Temporary BLAST databases
+*_db.*
+*.nhr
+*.nin
+*.nsq
+*.nsd
+*.nsi
+*.nog
+
+# Multiple sequence alignments (very large)
+results/*/phylogenetic*/combined_sequences.fasta
+results/*/phylogenetic*/alignment.fasta
+
+# Intermediate BLAST results
+results/*/validation*/blast_results.txt
+
+# EXCEPTIONS: Keep final outputs
+!results/mouse_identity60/
 !results/bat/
-results/bat/*
-!results/bat/SUMMARY.txt
-!results/bat/vgenes_predicted.fasta
-!results/training_history_multispecies.png
-!results/training_history_multispecies.csv
-!results/training_history_multiclass.png
-!results/training_history_multiclass.csv
-!results/confusion_matrix_multiclass.png
-!results/mouse/
-results/mouse/candidates.fasta
-results/mouse/tblastn_results.txt
-results/mouse/validation_*/blast_results.txt
-results/mouse/validation_*/*_db.*
-results/mouse/phylogenetic_validation/combined_sequences.fasta
-results/mouse/phylogenetic_validation/alignment.fasta
-!results/mouse/vgenes_predicted.fasta
-!results/mouse/vgenes_predicted_all_predictions.csv
+!results/*/vgenes_predicted.fasta
+!results/*/vgenes_predicted_predictions.csv
+!results/*/*.png
+!results/*/*.csv
 
-# IDE
+# Keep validation reports
+!results/*/validation*/validated.csv
+!results/*/validation*/misclassified.csv
+!results/*/validation*/no_match.csv
+
+# Keep phylogenetic trees
+!results/*/phylogenetic*/tree.nexus
+!results/*/phylogenetic*/tree.newick
+
+# ───────────────────────────────────────────────────────────────
+# IDEs and Editors
+# ───────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# ───────────────────────────────────────────────────────────────
+# Operating System
+# ───────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Environment variables
-.env
-
-# Personal notes
-PROGRESS.md
-TODO.md
-notes/
-
-# Temporary files
+# ───────────────────────────────────────────────────────────────
+# Temporary and Logs
+# ───────────────────────────────────────────────────────────────
 *.tmp
 *.log
 *.bak
+*.swp
+*~
 
-# IMGT references (too large, manually downloaded)
-data/reference/imgt_mouse/
-data/reference/ncbi_mouse/
+# ───────────────────────────────────────────────────────────────
+# Configuration and Personal Notes
+# ───────────────────────────────────────────────────────────────
+.env
+.env.local
 
-# BLAST databases
-*_db.*
+# Development notes (personal)
+PROGRESS.md
+TODO.md
+notes/
+scratch/
 
-# Large alignment/tree files
-results/*/phylogenetic_validation/combined_sequences.fasta
-results/*/phylogenetic_validation/alignment.fasta
-results/*/validation_*/blast_results.txt
+# Backups (created during cleanup)
+../backups/
 
-# But keep summaries and trees
-!results/*/validation_*/validated.csv
-!results/*/validation_*/misclassified.csv
-!results/*/validation_*/no_match.csv
-!results/*/phylogenetic_validation/tree.nexus
-!results/*/phylogenetic_validation/tree.newick
+# ───────────────────────────────────────────────────────────────
+# Jupyter (if added in the future)
+# ───────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ───────────────────────────────────────────────────────────────
+# Deprecated (obsolete files moved)
+#
