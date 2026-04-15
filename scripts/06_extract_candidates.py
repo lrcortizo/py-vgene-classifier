@@ -486,7 +486,7 @@ def main():
     print(f"  python scripts/07_classify_candidates.py \\")
     print(f"      --candidates {args.output} \\")
     print(f"      --model models/v2_hybrid/best_model.pt \\")
-    print(f"      --output results/mouse/vgenes_predicted.fasta")
+    print(f"      --output results/<species>/vgenes_predicted.fasta")
 
 
 if __name__ == "__main__":

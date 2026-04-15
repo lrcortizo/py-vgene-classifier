@@ -104,6 +104,7 @@ results/*/validation*/blast_results.txt
 *.swp
 *.swo
 *~
+CLAUDE.md
 
 # ───────────────────────────────────────────────────────────────
 # Operating System

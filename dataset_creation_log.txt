@@ -1,0 +1,87 @@
+================================================================================
+MULTICLASS DATASET PREPARATION - v2.0.0
+================================================================================
+Input directory: data/raw/positive
+Background file: data/background_extended/background_hard_negatives_8k.fasta
+Loci: ighv, igkv, trav, trbv
+Background ratio: 2.0:1
+Length range: 80-140 aa
+Train/val split: 80/20
+================================================================================
+
+📖 LOADING V-GENES
+--------------------------------------------------------------------------------
+   Loading ighv.fasta...
+   Loading igkv.fasta...
+   Loading trav.fasta...
+   Loading trbv.fasta...
+
+   V-genes loaded:
+     IGHV: 51
+     IGKV: 42
+     TRAV: 47
+     TRBV: 60
+     Total: 200
+
+📖 LOADING BACKGROUND
+--------------------------------------------------------------------------------
+   Target background: 400 (2.0:1 ratio)
+
+   Loading background from background_hard_negatives_8k.fasta...
+     Total available: 8,000
+     After length filter (80-140 aa): 8,000
+     Sampled: 400
+     Background sequences loaded: 400
+
+================================================================================
+DATASET STATISTICS
+================================================================================
+Total sequences: 600
+
+Class distribution:
+  IGHV        :     51 (  8.5%)
+  IGKV        :     42 (  7.0%)
+  TRAV        :     47 (  7.8%)
+  TRBV        :     60 ( 10.0%)
+  background  :    400 ( 66.7%)
+
+Length statistics by class:
+                 mean   min    max
+class_name                        
+IGHV        98.372549  97.0  101.0
+IGKV        96.333333  95.0  101.0
+TRAV        92.340426  87.0   96.0
+TRBV        95.316667  94.0   97.0
+background  80.952500  80.0  123.0
+
+================================================================================
+TRAIN/VAL SPLIT
+================================================================================
+Train: 480 sequences (80.0%)
+Val:   120 sequences (20.0%)
+
+Train class distribution:
+  IGHV        :     41
+  IGKV        :     33
+  TRAV        :     38
+  TRBV        :     48
+  background  :    320
+
+Val class distribution:
+  IGHV        :     10
+  IGKV        :      9
+  TRAV        :      9
+  TRBV        :     12
+  background  :     80
+
+================================================================================
+✅ DATASET PREPARATION COMPLETE
+================================================================================
+💾 Train: data/processed/train_multispecies_multiclass.csv
+💾 Val:   data/processed/val_multispecies_multiclass.csv
+
+Next step: Train multiclass model with terminal-region encoding
+  python scripts/03_train_model.py \
+      --train-csv data/processed/train_multispecies_multiclass.csv \
+      --val-csv data/processed/val_multispecies_multiclass.csv
+

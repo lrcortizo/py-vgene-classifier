@@ -289,7 +289,7 @@ def main():
     print(f"  python scripts/08_validate_predictions.py \\")
     print(f"      --predictions {args.output} \\")
     print(f"      --predictions-csv {csv_output} \\")
-    print(f"      --reference data/reference/imgt_mouse/all_vgenes_imgt.fasta \\")
+    print(f"      --reference data/reference/<imgt_species>/all_vgenes_imgt.fasta \\")
     print(f"      --output-dir {os.path.dirname(args.output)}/validation")
     print()
 
