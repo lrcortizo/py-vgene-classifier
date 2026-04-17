@@ -45,14 +45,11 @@ data/reference/ncbi_*/
 # ───────────────────────────────────────────────────────────────
 # Trained models
 # ───────────────────────────────────────────────────────────────
-# Ignore all models (large files, ~33MB each)
+# Ignore all model weights (large binary files, ~33MB each)
+models/**/*.pt
+models/**/*.pth
 models/*.pt
 models/*.pth
-
-# EXCEPTION: Keep final v2.0.0 model
-!models/v2_hybrid/
-models/v2_hybrid/*.pt
-!models/v2_hybrid/best_model.pt
 
 # ───────────────────────────────────────────────────────────────
 # Results - Large intermediate files

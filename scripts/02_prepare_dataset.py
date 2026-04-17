@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script 02: Prepare Multi-Species Multiclass Dataset (Simplified for raw FASTAs)
-Version: 2.0.0
+Version: 2.1.0
 Purpose: Prepare training data from simple IMGT FASTA files
 
 CLASSES (5 total):
@@ -244,7 +244,7 @@ def load_background(background_file, num_needed, min_length=80, max_length=140, 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Prepare multiclass dataset for V-gene classification (v2.0.0)"
+        description="Prepare multiclass dataset for V-gene classification (v2.1.0)"
     )
     parser.add_argument(
         "--input-dir",
@@ -305,7 +305,7 @@ def main():
     random.seed(args.seed)
 
     print("=" * 80)
-    print("MULTICLASS DATASET PREPARATION - v2.0.0")
+    print("MULTICLASS DATASET PREPARATION - v2.1.0")
     print("=" * 80)
     print(f"Input directory: {args.input_dir}")
     print(f"Background file: {args.background}")
