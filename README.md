@@ -30,7 +30,7 @@ complete recall collapse for TRAV/TRBV cross-species.
 
 **Fix:** 14 empirically-derived TRAV/TRBV FR1 regex patterns added to
 `VGENE_START_PATTERNS`, derived from 3,974 TRAV + 2,626 TRBV training sequences
-across 92 mammalian species. Coverage: 68.5% TRAV, 77.8% TRBV. False-positive
+across 113 mammalian species. Coverage: 68.5% TRAV, 77.8% TRBV. False-positive
 rate on IG sequences: <0.5%.
 
 **Result (no retraining required):**
@@ -113,7 +113,7 @@ Pipeline            Manual      Automated   Automated   ✅
 
 ## 📊 Validation Results (v2.1.0 — Three Species)
 
-**Model:** v2_multispecies_r2 (trained on 92 mammalian species, ratio 2:1 background)
+**Model:** v2_multispecies_r2 (trained on 113 mammalian species, ratio ~0.5:1 background; "r2" = run 2)
 
 ### Mouse (C57BL/6J — GRCm39)
 ```
@@ -226,7 +226,7 @@ py-vgene-classifier/
 │   ├── raw/positive/            # IMGT V-gene references
 │   └── reference/               # IMGT/NCBI references
 ├── models/
-│   └── v2_multispecies_r2/      # Trained model v2.1.0 (92 species, ratio 2:1)
+│   └── v2_multispecies_r2/      # Trained model v2.1.0 (113 species, ratio ~0.5:1, run 2)
 │       ├── best_model.pt        # weights not tracked in git (*.pt in .gitignore)
 │       ├── training_history.csv
 │       └── *.png
