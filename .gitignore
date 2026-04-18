@@ -146,5 +146,17 @@ scratch/
 *.ipynb
 
 # ───────────────────────────────────────────────────────────────
+# Claude Code
+# ───────────────────────────────────────────────────────────────
+.claude/
+
+# ───────────────────────────────────────────────────────────────
+# Experimental / intermediate processed data (not final pipeline)
+# ───────────────────────────────────────────────────────────────
+data/processed/
+data/processed_hybrid/
+data/processed_multispecies_r5/
+
+# ───────────────────────────────────────────────────────────────
 # Deprecated (obsolete files moved)
 #
