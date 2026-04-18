@@ -429,20 +429,19 @@ python scripts/01b_expand_background.py \
 
 **Step 2: Prepare Dataset**
 ```bash
-# Basic dataset
 python scripts/02_prepare_dataset.py \
     --input-dir data/raw/positive \
     --background data/background/background_hard_negatives.fasta \
     --output-dir data/processed \
-    --loci ighv igkv trav trbv
+    --background-ratio 2.0 \
+    --seed 42
+```
 
-# Hybrid dataset with expanded negatives (recommended)
-python scripts/02b_prepare_hybrid_dataset.py \
 **Step 3: Train Model**
 ```bash
 python scripts/03_train_model.py \
-    --train-csv data/processed_hybrid/train_hybrid.csv \
-    --val-csv data/processed_hybrid/val_hybrid.csv \
+    --train-csv data/processed/train_multispecies_multiclass.csv \
+    --val-csv data/processed/val_multispecies_multiclass.csv \
     --output-dir models/my_model \
     --epochs 30 \
     --batch-size 64 \
@@ -613,15 +612,15 @@ Use species-specific queries for better sensitivity:
 ```
 >candidate_1 query=IGHV1-2*01 chr1:12345-12678(+) len=98 predicted_locus=IGHV prob=0.9987
 QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQG...
->candidate_2 query=TRAV14*01 chr14:98765-99012(-) len=104 predicted_locus=TRAV prob=0.9654
-DIQMTQSPSSLSASVGDRVTITCRASQSISSWLAWYQQKPGKAPKLLIYKASSLESGVPSRFSGS...
+>candidate_2 query=TRAV14*01 chr14:98765-99012(-) len=101 predicted_locus=TRAV prob=0.9654
+AQSVTQSPSSVSAAPGQTAVTINCQSKSSVYNNYLSWFQQKPGQPPKLLIYWASTRESGVPDRFSGS...
 ```
 
 ### CSV Output (with --save-all)
 ```csv
 id,sequence,length,predicted_class,predicted_locus,probability,prob_background,prob_IGHV,prob_IGKV,prob_TRAV,prob_TRBV
 candidate_1,QVQLVQ...,98,1,IGHV,0.9987,0.0001,0.9987,0.0003,0.0005,0.0004
-candidate_2,DIQMTQ...,104,3,TRAV,0.9654,0.0012,0.0089,0.0045,0.9654,0.0200
+candidate_2,AQSVTQ...,101,3,TRAV,0.9654,0.0012,0.0089,0.0045,0.9654,0.0200
 ```
 
 ### Validation Report
@@ -630,12 +629,12 @@ Per-Locus Breakdown:
 ───────────────────────────────────────────────────────
 Locus    Predictions  Unique Found  Total IMGT  Recall  Precision
 ───────────────────────────────────────────────────────
-IGHV     14,322       331           341         97.1%   93.4%
-IGKV     1,081        96            100         96.0%   88.3%
-TRAV     660          97            109         89.0%   89.5%
-TRBV     8            8             22          36.4%   100.0%
+IGHV     ~13,200      322           341         94.4%   95.1%
+IGKV     ~1,100       97            100         97.0%   95.7%
+TRAV     ~1,100       101           109         92.7%   100.0%
+TRBV     ~316         13            22          59.1%   100.0%
 ───────────────────────────────────────────────────────
-TOTAL    16,071       532           572         93.0%   99.8%
+TOTAL    ~15,700      533           572         93.2%   95.4%
 ```
 
 ## 🔬 Biological Interpretation
@@ -962,7 +961,7 @@ If you use this pipeline in your research, please cite:
   author = {Luis Raña Cortizo and David N. Olivieri},
   title = {V-Gene Classifier v2.0: Automated Discovery and Classification of Immunoglobulin and T-Cell Receptor V-Genes},
   year = {2026},
-  version = {2.0.0},
+  version = {2.1.0},
   url = {https://github.com/yourusername/py-vgene-classifier}
 }
 ```
