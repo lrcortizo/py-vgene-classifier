@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script 07: Predict V-Gene Loci with Terminal-Region Encoding
-Version: 2.0.0
+Version: 2.1.0
 Purpose: Classify candidate sequences using trained model with terminal encoding
 
 Uses trained CNN model from script 03 to classify V-gene candidates extracted
@@ -119,7 +119,7 @@ def predict_sequences(sequences, model, device, batch_size=64):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Predict V-gene loci with terminal-region encoding (v2.0.0)"
+        description="Predict V-gene loci with terminal-region encoding (v2.1.0)"
     )
     parser.add_argument("--candidates", required=True,
                        help="Candidate sequences FASTA")
@@ -139,7 +139,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 80)
-    print("V-GENE PREDICTION - v2.0.0")
+    print("V-GENE PREDICTION - v2.1.0")
     print("=" * 80)
     print(f"Encoding: Terminal-region (N/C-term + dipeptides)")
     print(f"Model: {args.model}")
@@ -289,7 +289,7 @@ def main():
     print(f"  python scripts/08_validate_predictions.py \\")
     print(f"      --predictions {args.output} \\")
     print(f"      --predictions-csv {csv_output} \\")
-    print(f"      --reference data/reference/imgt_mouse/all_vgenes_imgt.fasta \\")
+    print(f"      --reference data/reference/<imgt_species>/all_vgenes_imgt.fasta \\")
     print(f"      --output-dir {os.path.dirname(args.output)}/validation")
     print()
 

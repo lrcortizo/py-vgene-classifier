@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script 02: Prepare Multi-Species Multiclass Dataset (Simplified for raw FASTAs)
-Version: 2.0.0
+Version: 2.1.0
 Purpose: Prepare training data from simple IMGT FASTA files
 
 CLASSES (5 total):
@@ -50,49 +50,73 @@ CLASS_NAMES = {
 
 def parse_simple_header(header):
     """
-    Parse simple IMGT header.
+    Parse simple IMGT header or multi-species header.
 
-    Format: > Homsap_IGHV1-2 IGHV1-2*01_X07448_VH_F
+    Formats accepted:
+    1. IMGT: > Homsap_IGHV1-2 IGHV1-2*01_X07448_VH_F
+    2. Multi-species: >Acinonyx_jubatus_Vs389 locus=IGHV
 
     Returns:
         Dict with id, gene_name, species, locus
     """
     try:
         parts = header.strip().split()
-        if len(parts) < 2:
+        if len(parts) < 1:
             return None
 
-        # First part: Species_Gene (e.g., Homsap_IGHV1-2)
-        species_gene = parts[0].replace('>', '').strip()
-        if '_' in species_gene:
-            species, gene = species_gene.split('_', 1)
+        # First part: ID (with or without >)
+        seq_id = parts[0].replace('>', '').strip()
+
+        # Check if it's multi-species format (has locus= tag)
+        if len(parts) >= 2 and 'locus=' in parts[1]:
+            # Format: >Species_VsXXX locus=IGHV
+            locus_tag = parts[1].split('=')[1].lower()  # Extract IGHV -> ighv
+
+            # Parse species from ID
+            if '_' in seq_id:
+                # Multi-word species: Acinonyx_jubatus_Vs389
+                parts_id = seq_id.split('_')
+                if len(parts_id) >= 3:
+                    species = '_'.join(parts_id[:-1])  # Everything except last part
+                    gene = parts_id[-1]  # VsXXX
+                else:
+                    species = parts_id[0]
+                    gene = '_'.join(parts_id[1:])
+            else:
+                species = 'unknown'
+                gene = seq_id
+
+            return {
+                "id": seq_id,
+                "gene_name": gene,
+                "species": species,
+                "locus": locus_tag
+            }
+
+        # Original IMGT format: >Homsap_IGHV1-2 IGHV1-2*01_X07448_VH_F
+        if '_' in seq_id:
+            species, gene = seq_id.split('_', 1)
         else:
             species = 'unknown'
-            gene = species_gene
+            gene = seq_id
 
-        # Extract locus from gene name (first 4-5 chars)
+        # Gene name from second part if available
+        gene_name = parts[1] if len(parts) >= 2 else gene
+
+        # Extract locus from gene name (IGHV1-2 -> ighv)
         locus = None
-        for locus_key in LOCUS_TO_CLASS.keys():
-            if locus_key != 'background' and gene.lower().startswith(locus_key):
-                locus = locus_key
+        for l in ['ighv', 'igkv', 'iglv', 'trav', 'trbv', 'trdv', 'trgv']:
+            if l in gene.lower() or l in gene_name.lower():
+                locus = l
                 break
 
-        if not locus:
-            return None
-
-        # Second part: Full gene name
-        full_name = parts[1] if len(parts) > 1 else gene
-
-        info = {
-            "id": full_name,
-            "gene_name": gene,
+        return {
+            "id": seq_id,
+            "gene_name": gene_name,
             "species": species,
             "locus": locus
         }
-        return info
-
     except Exception as e:
-        print(f"⚠️  Could not parse header: {header[:50]}... Error: {e}")
         return None
 
 
@@ -220,7 +244,7 @@ def load_background(background_file, num_needed, min_length=80, max_length=140, 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Prepare multiclass dataset for V-gene classification (v2.0.0)"
+        description="Prepare multiclass dataset for V-gene classification (v2.1.0)"
     )
     parser.add_argument(
         "--input-dir",
@@ -281,7 +305,7 @@ def main():
     random.seed(args.seed)
 
     print("=" * 80)
-    print("MULTICLASS DATASET PREPARATION - v2.0.0")
+    print("MULTICLASS DATASET PREPARATION - v2.1.0")
     print("=" * 80)
     print(f"Input directory: {args.input_dir}")
     print(f"Background file: {args.background}")

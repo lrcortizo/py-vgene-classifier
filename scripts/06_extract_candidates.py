@@ -39,11 +39,50 @@ import re
 
 
 # Framework 1 motifs for V-gene start detection
+# IG patterns are listed FIRST — find_vgene_start() returns on the first match,
+# so IG candidates are protected from false-positive TCR matches.
+#
+# TCR patterns derived empirically from 3,974 TRAV and 2,626 TRBV training
+# sequences (92 mammalian species). Coverage: TRAV 68.5%, TRBV 77.8%.
+# False-positive rate on IG sequences: IGHV 0.3%, IGKV 0.4%.
 VGENE_START_PATTERNS = [
-    r'[QE]VQ[LV]',          # EVQL, QVQL (IGHV)
-    r'D[ILV][VKQ][MLV]TQ',   # DIVMTQ, DIKMTQ, DIQMTQ (IGKV)
-    r'Q[AS]VL[TV]Q',        # QSVLTQ, QAVLTQ (IGKV/IGLV)
-    r'Q[AS]V[LV]TQ',        # QSVLTQ, QAVVTQ (variations)
+    # ── IGHV ────────────────────────────────────────────────────────────────
+    r'[QE]VQ[LV]',              # EVQL, QVQL
+    # ── IGKV / IGLV ─────────────────────────────────────────────────────────
+    r'D[ILV][VKQ][MLV]TQ',     # DIVMTQ, DIKMTQ, DIQMTQ
+    r'Q[AS]VL[TV]Q',            # QSVLTQ, QAVLTQ
+    r'Q[AS]V[LV]TQ',            # QSVVTQ, QAVVTQ
+    # ── TRAV ────────────────────────────────────────────────────────────────
+    # VxTQ family: GDSVTQ (8.2%), AQSVTQ (8.0%), AQKVTQ (4.1%), AQTVTQ (4.2%)
+    r'[AG][DNQ][SKTVRGN]V[TNVSA]Q',
+    # VEQ/VKQ family: GENVEQ (1.5%), GEQVEQ (1.5%), GEKVEQ (1.3%), QKEVEQ (1.8%)
+    r'[GQKEI][QEKLMNIVDRSG][QKEVDLNIVGSA]V[EKD]Q',
+    # VQQ family: GQQVQQ, QQKVQQ
+    r'[GQK][QKE][QKVLN]V[QK]Q',
+    # LxQ family: QQLEQS (1.0%), QELEQS (0.7%), QQLEQSP
+    r'[QE][QKE]L[NQKE][QS]',
+    # AKT family: IDAKTT (1.0%), SLAKTT (0.8%), GDAKTT (0.8%)
+    r'[IGSDV][DLSAV][AGS]K[TS][TQ]',
+    # IHQ/IKQ family: QQIKHF, SQKIEQ
+    r'[QS][QK][IK][KHE][QHF]',
+    # ── TRBV ────────────────────────────────────────────────────────────────
+    # xGV main: DAGVTQ (4.4%), NAGVTQ (4.3%), DSGVTQ (4.1%), GAGVSQ (3.5%)
+    # pos4=[VIA] (not L/F) to avoid false matches on IGHV internal sequences
+    r'[DNEAGHSK][ADSGEP][GA][VIA][TISQAV]Q',
+    # DAx: DAGITQ (2.0%), DAGVIQ (1.8%), DGGITQ (1.2%), DAEITQ (0.8%)
+    r'D[ADGEPSVK][GAEVQKRDP][VI][TISQF]Q',
+    # DTxV: DTEVTQ (2.6%), DTGVTQ (2.2%), DTAVSQ (1.4%), DTGITQ (1.0%)
+    r'DT[EGAKD][VI][TSFIQ]Q',
+    # EAx: EAEVTQ (1.2%), DSEVTQ (1.3%), DAEVTQ (1.2%), HAEVTQ, NADVTQ
+    r'[ENDHSAG][ASDHE][EAQKDGT][VI][TS]Q',
+    # GAL: GALVSQ (1.6%), GAMVIQ (0.6%), GALLSQ
+    r'GA[LMV][VLI][TSIQ]Q',
+    # EPE/AGV: EPEVTQ (1.4%), AGVVSQ
+    r'[EA][PGS][EA][VI][TSIQ]Q',
+    # AQT/SQT: AQTIHQ (1.1%), SQTIHQ
+    r'[AS]QT[ILV][HNQ]',
+    # DVK: DVKVTQ (0.6%), DVMVIQ
+    r'D[VA][KRM][VI][TS]Q',
 ]
 
 
@@ -486,7 +525,7 @@ def main():
     print(f"  python scripts/07_classify_candidates.py \\")
     print(f"      --candidates {args.output} \\")
     print(f"      --model models/v2_hybrid/best_model.pt \\")
-    print(f"      --output results/mouse/vgenes_predicted.fasta")
+    print(f"      --output results/<species>/vgenes_predicted.fasta")
 
 
 if __name__ == "__main__":

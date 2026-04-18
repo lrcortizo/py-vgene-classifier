@@ -233,7 +233,7 @@ def main():
     print(f"  python scripts/06_extract_candidates.py \\")
     print(f"      --tblastn-results {args.output} \\")
     print(f"      --genome {args.genome} \\")
-    print(f"      --output results/mouse/candidates.fasta")
+    print(f"      --output results/<species>/candidates.fasta")
 
 
 if __name__ == "__main__":
