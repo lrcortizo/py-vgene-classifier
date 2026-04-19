@@ -151,9 +151,9 @@ TRBV     85.0%     100.0%       17/20
 TOTAL    85.1%     90.9%        131/154
 ```
 
-**Open limitations:**
-- TRAV human 68.9%: ~31% of candidates have no FR1 pattern match (patterns cover 68.5% of TRAV families)
-- TRBV mouse 59.1%: only 38 TRBV candidates from TBLASTN (sparse genomic hits)
+**Open limitations (v2.1.0 standard pass — resolved by two-pass TBLASTN in v2.2.0):**
+- TRAV human 75.6% (standard pass): TRAV1-1/2, TRAV5, TRAV8-x, TRAV16, TRAV23/DV6 require second TBLASTN pass (CDR2/FR3 anchoring issue)
+- TRBV mouse 59.1% (standard pass): TRBV1/3/4/5/17/19/20/29/30 require second TBLASTN pass (hit falls outside V-gene exon)
 
 ## 🚀 Quick Start
 
@@ -604,6 +604,51 @@ Use species-specific queries for better sensitivity:
 # Extract representative V-genes from IMGT
 # Filter by species, functionality, and diversity
 # Use as TBLASTN queries
+```
+
+## Two-pass TBLASTN for difficult V-gene families
+
+Some V-gene families have TBLASTN hits anchoring in CDR2/FR3 instead of FR1.
+The standard 120 aa extraction window misses the gene start. Solution: run a
+second TBLASTN pass with `evalue 1e-3` using only the affected families as query.
+
+**Known affected families:**
+- **Human TRAV:** TRAV1-1, TRAV1-2, TRAV5, TRAV8-1/2/3/4/6, TRAV16, TRAV23/DV6
+- **Mouse TRBV:** TRBV1, TRBV3, TRBV4, TRBV5, TRBV17, TRBV19, TRBV20, TRBV29, TRBV30
+
+**Step 1 — Create family-specific reference FASTA** (already provided in `data/reference/`):
+```
+data/reference/imgt_human/trav_human_missing.fasta   # 10 TRAV genes
+data/reference/imgt_mouse/trbv_mouse_missing.fasta   # 13 TRBV genes
+```
+
+**Step 2 — Second TBLASTN pass** (genome DB must already exist from scripts 05):
+```bash
+python scripts/05_run_tblastn.py \
+    --genome data/genomes/<species>/<genome>.fna \
+    --query data/reference/<imgt_species>/<locus>_missing.fasta \
+    --output results/<species>/tblastn_<locus>_missing.txt \
+    --evalue 1e-3 --threads 8 --skip-makedb
+```
+
+**Step 3 — Extract candidates from second-pass hits:**
+```bash
+python scripts/06_extract_candidates.py \
+    --tblastn-results results/<species>/tblastn_<locus>_missing.txt \
+    --genome data/genomes/<species>/<genome>.fna \
+    --output results/<species>/candidates_<locus>_missing.fasta \
+    --clean-terminals --min-identity 60
+```
+
+**Step 4 — Merge, classify and validate** as usual with scripts 07–08, using the
+combined candidates (original + `_missing.fasta`).
+
+**Results with second pass (v2.2.0):**
+```
+Species   Locus   Standard pass   With second pass   Gain
+─────────────────────────────────────────────────────────
+Human     TRAV       75.6%           ~100%           +24%
+Mouse     TRBV       59.1%           ~72.7%          +14%
 ```
 
 ## 📊 Output Formats
