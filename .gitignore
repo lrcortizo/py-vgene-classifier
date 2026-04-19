@@ -157,6 +157,18 @@ data/processed/
 data/processed_hybrid/
 data/processed_multispecies_r5/
 
-# ───────────────────────────────────────────────────────────────
-# Deprecated (obsolete files moved)
-#
+ v2.2.0 processed data and results (not committed)
+data/processed_v2.2/
+data/background_v2.2/
+data/raw/positive_v2.2/
+
+# Model artifacts except weights (already covered by models/**/*.pt)
+models/*/confusion_matrix.png
+models/*/training_history.csv
+models/*/training_history.png
+
+# v2.2 results directories
+results/*_v2.2/
+results/*/candidates_retrimmed.fasta
+results/*/vgenes_retrimmed*.fasta
+results/*/vgenes_retrimmed*_predictions.csv
