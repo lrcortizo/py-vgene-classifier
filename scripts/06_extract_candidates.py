@@ -334,24 +334,50 @@ def extract_sequences(
         if strand == '-':
             dna_seq = dna_seq.reverse_complement()
 
-        # Translate in all 3 frames
+        # ── Frame selection: prefer the frame implied by the TBLASTN hit ──────
+        # With extend=150 (not clamped) the hit always starts at nt 150 in
+        # the extracted window → preferred_frame=0, hit_aa=50.  Clamped
+        # regions near chromosome boundaries get the correct frame too.
         best_protein = None
         best_length = 0
 
-        for frame in range(3):
-            try:
-                protein_seq = dna_seq[frame:].translate(to_stop=False)
-                protein_str = str(protein_seq).rstrip('*')
+        if strand == '+':
+            hit_pos_in_dna = (start - 1) - extended_start  # 0-based in dna_seq
+        else:  # '-': after rev_comp the hit start is at this position
+            hit_pos_in_dna = extended_end - end             # 0-based in rev_comp
 
-                # Split by stops, take longest fragment
-                fragments = protein_str.split('*')
+        preferred_frame = hit_pos_in_dna % 3
+        hit_aa_in_frame = hit_pos_in_dna // 3  # expected aa index of hit start
 
-                for fragment in fragments:
-                    if len(fragment) >= 70 and len(fragment) > best_length:
-                        best_length = len(fragment)
-                        best_protein = fragment
-            except Exception:
-                continue
+        # Step 1: preferred frame — find the fragment that contains the hit
+        try:
+            protein_seq = dna_seq[preferred_frame:].translate(to_stop=False)
+            protein_str = str(protein_seq).rstrip('*')
+            fragments = protein_str.split('*')
+            cumulative = 0
+            for fragment in fragments:
+                frag_end = cumulative + len(fragment)
+                if cumulative <= hit_aa_in_frame < frag_end and len(fragment) >= 70:
+                    best_protein = fragment
+                    best_length = len(fragment)
+                    break
+                cumulative = frag_end + 1  # +1 accounts for the stop codon
+        except Exception:
+            pass
+
+        # Step 2: fallback — longest ORF across all 3 frames (original behaviour)
+        if best_protein is None:
+            for frame in range(3):
+                try:
+                    protein_seq = dna_seq[frame:].translate(to_stop=False)
+                    protein_str = str(protein_seq).rstrip('*')
+                    fragments = protein_str.split('*')
+                    for fragment in fragments:
+                        if len(fragment) >= 70 and len(fragment) > best_length:
+                            best_length = len(fragment)
+                            best_protein = fragment
+                except Exception:
+                    continue
 
         if best_protein:
             original_length = len(best_protein)
