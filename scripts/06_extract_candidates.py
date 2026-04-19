@@ -96,6 +96,20 @@ VGENE_START_PATTERNS = [
     r'DQQV[KR]Q',             # TRAV29/DV5
     r'EDKV[VIMQ]',             # TRAV36/DV7 (V-only pos3: 1 IGHV FP elim.)
     r'SNSV[KR]Q',             # TRAV40
+    # ── TRBV additional patterns (v2.2.0) — derived from training set + IMGT ──
+    r'VTLLEQ',      # TRBV1
+    r'GPKVLQ',      # TRBV3
+    r'ETAVFQ',      # TRBV4
+    r'NTKITQ',      # TRBV5
+    r'[DN]SGVVQ',   # TRBV12-2
+    r'DTTVKQ',      # TRBV17
+    r'GGIITQ',      # TRBV19
+    r'GALVYQ',      # TRBV20
+    r'DAAVTQ',      # TRBV23
+    r'VAGVTQ',      # TRBV24
+    r'NSKVIQ',      # TRBV26
+    r'DMKVTQ',      # TRBV29
+    r'SVLLYQ',      # TRBV30
 ]
 
 
