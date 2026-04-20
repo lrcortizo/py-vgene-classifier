@@ -15,6 +15,7 @@ Usage:
 import argparse
 import subprocess
 import gzip
+import re
 import shutil
 import urllib.request
 import json
@@ -82,8 +83,10 @@ def download_with_wget(accession: str, output_dir: Path) -> bool:
     """
     Download directly from NCBI FTP using wget.
 
-    Fetches the exact assembly_name from the NCBI API first so the
-    FTP URL can be constructed precisely (no suffix-guessing loop).
+    Discovers the exact FTP subdirectory by listing the parent directory
+    (more reliable than the NCBI API, which may return a stale assembly_name).
+    Falls back to the API assembly_name if the FTP listing fails, then to
+    generic path patterns.
 
     Returns True if successful, False otherwise.
     """
@@ -104,29 +107,44 @@ def download_with_wget(accession: str, output_dir: Path) -> bool:
         f"/{prefix}/{group1}/{group2}/{group3}"
     )
 
-    # Step 1: get exact assembly_name from NCBI API
-    assembly_name = None
-    print(f"   🔍 Querying NCBI API for assembly name...")
+    # Step 1: discover exact subdirectory via FTP HTML listing (most reliable)
+    subdir = None
+    print(f"   🔍 Listing FTP directory: {base_url}/")
     try:
-        api_url = (
-            f"https://api.ncbi.nlm.nih.gov/datasets/v2/genome"
-            f"/accession/{accession}/dataset_report"
-        )
-        req = urllib.request.Request(
-            api_url, headers={"Accept": "application/json"}
-        )
-        with urllib.request.urlopen(req, timeout=15) as response:
-            data = json.load(response)
-            assembly_name = data['reports'][0]['assembly_info']['assembly_name']
-            print(f"   ✅ Assembly name: {assembly_name}")
+        with urllib.request.urlopen(base_url + "/", timeout=15) as response:
+            html = response.read().decode()
+            matches = re.findall(rf'({re.escape(accession)}_[^/"<\s]+)/', html)
+            if matches:
+                subdir = matches[0]
+                print(f"   ✅ Found subdirectory: {subdir}")
+            else:
+                print(f"   ⚠️  No matching subdirectory in FTP listing")
     except Exception as e:
-        print(f"   ⚠️  API query failed ({e}), falling back to suffix guessing")
+        print(f"   ⚠️  FTP listing failed ({e})")
 
-    # Step 2: build URL list — exact if we have the name, generic otherwise
-    if assembly_name:
+    # Step 2: if FTP listing failed, fall back to NCBI API for assembly_name
+    if subdir is None:
+        print(f"   🔍 Querying NCBI API for assembly name (fallback)...")
+        try:
+            api_url = (
+                f"https://api.ncbi.nlm.nih.gov/datasets/v2/genome"
+                f"/accession/{accession}/dataset_report"
+            )
+            req = urllib.request.Request(
+                api_url, headers={"Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as response:
+                data = json.load(response)
+                assembly_name = data['reports'][0]['assembly_info']['assembly_name']
+                subdir = f"{accession}_{assembly_name}"
+                print(f"   ✅ Assembly name from API: {assembly_name}")
+        except Exception as e:
+            print(f"   ⚠️  API query failed ({e})")
+
+    # Step 3: build URL list — exact subdir first, generic patterns as last resort
+    if subdir:
         urls_to_try = [
-            f"{base_url}/{accession}_{assembly_name}"
-            f"/{accession}_{assembly_name}_genomic.fna.gz"
+            f"{base_url}/{subdir}/{subdir}_genomic.fna.gz"
         ]
     else:
         urls_to_try = [
