@@ -490,14 +490,24 @@ python scripts/03_train_model.py \
 
 **Step 1: Prepare Genome**
 ```bash
-# Option A: Download from NCBI
+# Option A: Download from NCBI (auto: tries datasets CLI first, then wget)
 python scripts/04_download_genome.py \
     --accession GCF_XXXXXXXXX.X \
-    --output-dir data/genomes/species_name
+    --output-dir data/genomes/species_name \
+    --method auto
 
-# Option B: Use local genome
+# Option B: Force direct FTP download (no datasets CLI required)
+python scripts/04_download_genome.py \
+    --accession GCF_XXXXXXXXX.X \
+    --output-dir data/genomes/species_name \
+    --method wget
+
+# Option C: Use local genome
 # Place genome FASTA in data/genomes/species_name/genome.fna
 ```
+
+> **Note:** The `wget` method automatically queries the NCBI API to obtain the
+> exact assembly name before constructing the FTP URL — no hardcoded suffixes.
 
 **Step 2: Search with TBLASTN**
 ```bash
