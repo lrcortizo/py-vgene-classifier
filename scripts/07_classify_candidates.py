@@ -257,7 +257,7 @@ def main():
         print("⚠️  No V-genes to save")
 
     # Save all predictions to CSV
-    if vgene_records:  # Always save CSV
+    if vgene_records or args.save_all:
         data = []
         for res in (vgenes + background if args.save_all else vgenes):
             row = {
