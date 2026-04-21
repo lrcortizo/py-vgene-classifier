@@ -237,8 +237,8 @@ def main():
     print("SAVING RESULTS")
     print("=" * 80)
 
+    vgene_records = []
     if vgenes:
-        vgene_records = []
         for v in vgenes:
             new_rec = SeqRecord(
                 v['record'].seq,
