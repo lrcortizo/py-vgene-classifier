@@ -48,10 +48,12 @@ import re
 VGENE_START_PATTERNS = [
     # ── IGHV ────────────────────────────────────────────────────────────────
     r'[QE]VQ[LV]',              # EVQL, QVQL
+    r'QVTL',                    # IGHV VH2 family (primates)
     # ── IGKV / IGLV ─────────────────────────────────────────────────────────
     r'D[ILV][VKQ][MLV]TQ',     # DIVMTQ, DIKMTQ, DIQMTQ
     r'Q[AS]VL[TV]Q',            # QSVLTQ, QAVLTQ
     r'Q[AS]V[LV]TQ',            # QSVVTQ, QAVVTQ
+    r'ETT[LV]TQ',               # IGKV ETT family
     # ── TRAV ────────────────────────────────────────────────────────────────
     # VxTQ family: GDSVTQ (8.2%), AQSVTQ (8.0%), AQKVTQ (4.1%), AQTVTQ (4.2%)
     r'[AG][DNQ][SKTVRGN]V[TNVSA]Q',
