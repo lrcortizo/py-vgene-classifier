@@ -146,7 +146,7 @@ Pipeline            Manual      Automated   Automated   Automated   ✅
 ## 📊 Validation Results (v2.1.0 — Three Species)
 
 **Model:** v2_multispecies_r3 (trained on 113 mammalian + 16 reptile species; "r3" = run 3)
-Validated on out-of-training species (Pongo pygmaeus): 94.5% overall recall, 97.0% precision.
+Validated on out-of-training species (Pongo pygmaeus): 96.1% recall in primates (Pongo pygmaeus, IGHV/IGKV 100%), 97.0% precision.
 
 ### Mouse (C57BL/6J — GRCm39)
 ```
@@ -191,12 +191,12 @@ Standard-pass only: Human TRAV 75.6%, Mouse TRBV 50.0% (11/22).
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV     96.6%     97.0%         57/59
-IGKV     97.1%     97.0%         34/35
+IGHV    100.0%     97.0%         59/59
+IGKV    100.0%     97.0%         35/35
 TRAV     92.5%     97.0%         37/40
 TRBV     91.5%     97.0%         43/47
 ───────────────────────────────────────────────
-TOTAL    94.5%     97.0%        171/181
+TOTAL    96.1%     97.0%        174/181
 ```
 Zero misclassifications. First validation on a species absent from training data.
 
