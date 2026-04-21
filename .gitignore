@@ -52,13 +52,25 @@ models/*.pt
 models/*.pth
 
 # ───────────────────────────────────────────────────────────────
-# Results - Large intermediate files
+# Results - Species output directories
 # ───────────────────────────────────────────────────────────────
-# TBLASTN outputs (can be very large)
-results/*/tblastn_results.txt
+# Ignore ALL species result directories by default.
+# New species are automatically ignored — add !exception below to track one.
+results/*/
 
-# Unclassified candidates (large)
-results/*/candidates.fasta
+# Currently tracked species (final validation results committed)
+!results/ferret_identity60/
+!results/ferret_multispecies/
+!results/human_identity60/
+!results/human_multispecies_r2/
+!results/mouse_identity60/
+
+# Within tracked directories: skip large intermediate files
+results/*/tblastn*.txt
+results/*/candidates*.fasta
+results/*/phylogenetic*/combined_sequences.fasta
+results/*/phylogenetic*/alignment.fasta
+results/*/validation*/blast_results.txt
 
 # Temporary BLAST databases
 *_db.*
@@ -68,30 +80,6 @@ results/*/candidates.fasta
 *.nsd
 *.nsi
 *.nog
-
-# Multiple sequence alignments (very large)
-results/*/phylogenetic*/combined_sequences.fasta
-results/*/phylogenetic*/alignment.fasta
-
-# Intermediate BLAST results
-results/*/validation*/blast_results.txt
-
-# EXCEPTIONS: Keep final outputs
-!results/mouse_identity60/
-!results/bat/
-!results/*/vgenes_predicted.fasta
-!results/*/vgenes_predicted_predictions.csv
-!results/*/*.png
-!results/*/*.csv
-
-# Keep validation reports
-!results/*/validation*/validated.csv
-!results/*/validation*/misclassified.csv
-!results/*/validation*/no_match.csv
-
-# Keep phylogenetic trees
-!results/*/phylogenetic*/tree.nexus
-!results/*/phylogenetic*/tree.newick
 
 # ───────────────────────────────────────────────────────────────
 # IDEs and Editors
@@ -157,7 +145,7 @@ data/processed/
 data/processed_hybrid/
 data/processed_multispecies_r5/
 
- v2.2.0 processed data and results (not committed)
+# v2.2.0 processed data (not committed)
 data/processed_v2.2/
 data/background_v2.2/
 data/raw/positive_v2.2/
@@ -167,8 +155,3 @@ models/*/confusion_matrix.png
 models/*/training_history.csv
 models/*/training_history.png
 
-# v2.2 results directories
-results/*_v2.2/
-results/*/candidates_retrimmed.fasta
-results/*/vgenes_retrimmed*.fasta
-results/*/vgenes_retrimmed*_predictions.csv
