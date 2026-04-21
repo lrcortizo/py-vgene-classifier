@@ -146,6 +146,7 @@ Pipeline            Manual      Automated   Automated   Automated   ✅
 ## 📊 Validation Results (v2.1.0 — Three Species)
 
 **Model:** v2_multispecies_r3 (trained on 113 mammalian + 16 reptile species; "r3" = run 3)
+Validated on out-of-training species (Pongo pygmaeus): 94.5% overall recall, 97.0% precision.
 
 ### Mouse (C57BL/6J — GRCm39)
 ```
@@ -185,6 +186,19 @@ TOTAL    85.7%     90.9%        132/154
 
 † With two-pass TBLASTN (see [Two-pass TBLASTN](#two-pass-tblastn-for-difficult-v-gene-families)).
 Standard-pass only: Human TRAV 75.6%, Mouse TRBV 50.0% (11/22).
+
+### Pongo pygmaeus (*Bornean orangutan* — mPonPyg2) — Out-of-training ✓
+```
+Locus    Recall    Precision    Unique Found
+───────────────────────────────────────────────
+IGHV     96.6%     97.0%         57/59
+IGKV     97.1%     97.0%         34/35
+TRAV     92.5%     97.0%         37/40
+TRBV     91.5%     97.0%         43/47
+───────────────────────────────────────────────
+TOTAL    94.5%     97.0%        171/181
+```
+Zero misclassifications. First validation on a species absent from training data.
 
 ## 🚀 Quick Start
 
