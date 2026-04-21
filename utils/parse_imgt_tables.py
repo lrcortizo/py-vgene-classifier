@@ -116,6 +116,7 @@ def main():
     loci = ['ighv', 'igkv', 'iglv', 'trav', 'trbv']
 
     total = 0
+    all_records = []
     for locus in loci:
         input_file = os.path.join(args.input_dir, f"{locus}_raw.txt")
 
@@ -151,11 +152,19 @@ def main():
             SeqIO.write(records, output_file, 'fasta')
             print(f"  ✅ {len(records)} functional genes → {output_file}")
             total += len(records)
+            all_records.extend(records)
         else:
             print(f"  ⚠️  No functional genes found")
 
+    # Write combined file with all loci
+    if all_records:
+        combined_file = os.path.join(args.output_dir, "all_vgenes_imgt.fasta")
+        SeqIO.write(all_records, combined_file, 'fasta')
+
     print(f"\n{'='*70}")
     print(f"TOTAL: {total} functional V-genes extracted from IMGT")
+    if all_records:
+        print(f"Combined: {combined_file}")
     print(f"{'='*70}")
 
 if __name__ == "__main__":
