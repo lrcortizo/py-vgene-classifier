@@ -260,7 +260,7 @@ def main():
         csv_output = args.output.replace('.fasta', '_predictions.csv')
 
         data = []
-        for res in vgenes:
+        for res in (vgenes + background if args.save_all else vgenes):
             row = {
                 'id': res['record'].id,
                 'sequence': str(res['record'].seq),
