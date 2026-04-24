@@ -237,8 +237,9 @@ def main():
     print("SAVING RESULTS")
     print("=" * 80)
 
+    vgene_records = []
+    csv_output = args.output.replace('.fasta', '_predictions.csv')
     if vgenes:
-        vgene_records = []
         for v in vgenes:
             new_rec = SeqRecord(
                 v['record'].seq,
@@ -256,11 +257,9 @@ def main():
         print("⚠️  No V-genes to save")
 
     # Save all predictions to CSV
-    if vgene_records:  # Always save CSV
-        csv_output = args.output.replace('.fasta', '_predictions.csv')
-
+    if vgene_records or args.save_all:
         data = []
-        for res in vgenes:
+        for res in (vgenes + background if args.save_all else vgenes):
             row = {
                 'id': res['record'].id,
                 'sequence': str(res['record'].seq),

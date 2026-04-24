@@ -15,6 +15,7 @@ Usage:
 import argparse
 import subprocess
 import gzip
+import re
 import shutil
 import urllib.request
 import json
@@ -82,47 +83,84 @@ def download_with_wget(accession: str, output_dir: Path) -> bool:
     """
     Download directly from NCBI FTP using wget.
 
+    Discovers the exact FTP subdirectory by listing the parent directory
+    (more reliable than the NCBI API, which may return a stale assembly_name).
+    Falls back to the API assembly_name if the FTP listing fails, then to
+    generic path patterns.
+
     Returns True if successful, False otherwise.
     """
     print(f"\n🌐 Attempting download via FTP...")
 
-    # Construct FTP URL
-    # Example: GCF_000147115.1 -> GCF/000/147/115/GCF_000147115.1
+    # Construct FTP base URL from accession
+    # Example: GCF_028885625.2 -> GCF/028/885/625/
     parts = accession.split('_')
-    prefix = parts[0]  # GCF or GCA
-    number = parts[1].split('.')[0]  # 000147115
+    prefix = parts[0]                  # GCF or GCA
+    number = parts[1].split('.')[0]    # 028885625
 
-    # Split number into groups
     group1 = number[0:3]
     group2 = number[3:6]
     group3 = number[6:9]
 
-    base_url = f"https://ftp.ncbi.nlm.nih.gov/genomes/all/{prefix}/{group1}/{group2}/{group3}"
+    base_url = (
+        f"https://ftp.ncbi.nlm.nih.gov/genomes/all"
+        f"/{prefix}/{group1}/{group2}/{group3}"
+    )
 
-    # Find exact directory (need to match suffix)
-    print(f"   🔍 Looking for assembly at: {base_url}/")
-
-    # Get assembly metadata
+    # Step 1: discover exact subdirectory via FTP HTML listing (most reliable)
+    subdir = None
+    print(f"   🔍 Listing FTP directory: {base_url}/")
     try:
-        api_url = f"https://api.ncbi.nlm.nih.gov/datasets/v2alpha/genome/accession/{accession}"
-        with urllib.request.urlopen(api_url) as response:
-            data = json.loads(response.read())
-            assembly_name = data['reports'][0]['assembly_info']['assembly_name']
-            suffixes = [f"_{assembly_name}", "", "_latest"]
-    except:
-        suffixes = ["_Myoluc2.0", "", "_latest"]  # Fallback with common patterns
+        with urllib.request.urlopen(base_url + "/", timeout=15) as response:
+            html = response.read().decode()
+            matches = re.findall(rf'({re.escape(accession)}_[^/"<\s]+)/', html)
+            if matches:
+                subdir = matches[0]
+                print(f"   ✅ Found subdirectory: {subdir}")
+            else:
+                print(f"   ⚠️  No matching subdirectory in FTP listing")
+    except Exception as e:
+        print(f"   ⚠️  FTP listing failed ({e})")
 
-    for suffix in suffixes:
-        url = f"{base_url}/{accession}{suffix}/{accession}{suffix}_genomic.fna.gz"
-        output_gz = output_dir / f"{accession}_genomic.fna.gz"
+    # Step 2: if FTP listing failed, fall back to NCBI API for assembly_name
+    if subdir is None:
+        print(f"   🔍 Querying NCBI API for assembly name (fallback)...")
+        try:
+            api_url = (
+                f"https://api.ncbi.nlm.nih.gov/datasets/v2/genome"
+                f"/accession/{accession}/dataset_report"
+            )
+            req = urllib.request.Request(
+                api_url, headers={"Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as response:
+                data = json.load(response)
+                assembly_name = data['reports'][0]['assembly_info']['assembly_name']
+                subdir = f"{accession}_{assembly_name}"
+                print(f"   ✅ Assembly name from API: {assembly_name}")
+        except Exception as e:
+            print(f"   ⚠️  API query failed ({e})")
 
+    # Step 3: build URL list — exact subdir first, generic patterns as last resort
+    if subdir:
+        urls_to_try = [
+            f"{base_url}/{subdir}/{subdir}_genomic.fna.gz"
+        ]
+    else:
+        urls_to_try = [
+            f"{base_url}/{accession}/{accession}_genomic.fna.gz",
+            f"{base_url}/{accession}_latest/{accession}_latest_genomic.fna.gz",
+        ]
+
+    output_gz = output_dir / f"{accession}_genomic.fna.gz"
+
+    for url in urls_to_try:
         try:
             print(f"   📥 Trying: {url}")
-
             cmd = ["wget", "-q", "-O", str(output_gz), url]
             result = subprocess.run(cmd)
 
-            if result.returncode == 0 and output_gz.exists():
+            if result.returncode == 0 and output_gz.exists() and output_gz.stat().st_size > 0:
                 # Decompress
                 print(f"   📦 Decompressing...")
                 output_fna = output_dir / f"{accession}.fna"
@@ -132,12 +170,16 @@ def download_with_wget(accession: str, output_dir: Path) -> bool:
                         shutil.copyfileobj(f_in, f_out)
 
                 output_gz.unlink()  # Remove .gz
-
                 print(f"   ✅ Genome saved: {output_fna}")
                 return True
 
+            elif output_gz.exists():
+                output_gz.unlink()  # Clean up empty/failed file
+
         except Exception as e:
             print(f"   ⚠️  Failed: {e}")
+            if output_gz.exists():
+                output_gz.unlink()
             continue
 
     return False

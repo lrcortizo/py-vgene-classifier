@@ -48,10 +48,12 @@ import re
 VGENE_START_PATTERNS = [
     # ── IGHV ────────────────────────────────────────────────────────────────
     r'[QE]VQ[LV]',              # EVQL, QVQL
+    r'QVTL',                    # IGHV VH2 family (primates)
     # ── IGKV / IGLV ─────────────────────────────────────────────────────────
     r'D[ILV][VKQ][MLV]TQ',     # DIVMTQ, DIKMTQ, DIQMTQ
     r'Q[AS]VL[TV]Q',            # QSVLTQ, QAVLTQ
     r'Q[AS]V[LV]TQ',            # QSVVTQ, QAVVTQ
+    r'ETT[LV]TQ',               # IGKV ETT family
     # ── TRAV ────────────────────────────────────────────────────────────────
     # VxTQ family: GDSVTQ (8.2%), AQSVTQ (8.0%), AQKVTQ (4.1%), AQTVTQ (4.2%)
     r'[AG][DNQ][SKTVRGN]V[TNVSA]Q',
@@ -83,6 +85,33 @@ VGENE_START_PATTERNS = [
     r'[AS]QT[ILV][HNQ]',
     # DVK: DVKVTQ (0.6%), DVMVIQ
     r'D[VA][KRM][VI][TS]Q',
+    # ── TRAV additional patterns (v2.2.0) — derived from training set + IMGT ──
+    r'GQ[SNK][LIV][EQD]Q',   # TRAV1-1, TRAV1-2
+    r'KDQ[VI][FY]Q',          # TRAV2
+    r'[ED]NQ[VK][EQH]',       # TRAV7
+    r'R[KNQ]EV[EK]',          # TRAV12-1
+    r'GES[VT][GL]',            # TRAV13-2  (H/Q excluded: 36 IGHV FP)
+    r'AQK[IV][TI]Q',          # TRAV14/DV4
+    r'[SD]QQ[EGK][EQ]',       # TRAV17
+    r'KQE[VK][TQ]Q',          # TRAV21
+    r'GQQ[VK][MQVK]Q',        # TRAV25
+    r'DQQV[KR]Q',             # TRAV29/DV5
+    r'EDKV[VIMQ]',             # TRAV36/DV7 (V-only pos3: 1 IGHV FP elim.)
+    r'SNSV[KR]Q',             # TRAV40
+    # ── TRBV additional patterns (v2.2.0) — derived from training set + IMGT ──
+    r'VTLLEQ',      # TRBV1
+    r'GPKVLQ',      # TRBV3
+    r'ETAVFQ',      # TRBV4
+    r'NTKITQ',      # TRBV5
+    r'[DN]SGVVQ',   # TRBV12-2
+    r'DTTVKQ',      # TRBV17
+    r'GGIITQ',      # TRBV19
+    r'GALVYQ',      # TRBV20
+    r'DAAVTQ',      # TRBV23
+    r'VAGVTQ',      # TRBV24
+    r'NSKVIQ',      # TRBV26
+    r'DMKVTQ',      # TRBV29
+    r'SVLLYQ',      # TRBV30
 ]
 
 
@@ -321,24 +350,50 @@ def extract_sequences(
         if strand == '-':
             dna_seq = dna_seq.reverse_complement()
 
-        # Translate in all 3 frames
+        # ── Frame selection: prefer the frame implied by the TBLASTN hit ──────
+        # With extend=150 (not clamped) the hit always starts at nt 150 in
+        # the extracted window → preferred_frame=0, hit_aa=50.  Clamped
+        # regions near chromosome boundaries get the correct frame too.
         best_protein = None
         best_length = 0
 
-        for frame in range(3):
-            try:
-                protein_seq = dna_seq[frame:].translate(to_stop=False)
-                protein_str = str(protein_seq).rstrip('*')
+        if strand == '+':
+            hit_pos_in_dna = (start - 1) - extended_start  # 0-based in dna_seq
+        else:  # '-': after rev_comp the hit start is at this position
+            hit_pos_in_dna = extended_end - end             # 0-based in rev_comp
 
-                # Split by stops, take longest fragment
-                fragments = protein_str.split('*')
+        preferred_frame = hit_pos_in_dna % 3
+        hit_aa_in_frame = hit_pos_in_dna // 3  # expected aa index of hit start
 
-                for fragment in fragments:
-                    if len(fragment) >= 70 and len(fragment) > best_length:
-                        best_length = len(fragment)
-                        best_protein = fragment
-            except Exception:
-                continue
+        # Step 1: preferred frame — find the fragment that contains the hit
+        try:
+            protein_seq = dna_seq[preferred_frame:].translate(to_stop=False)
+            protein_str = str(protein_seq).rstrip('*')
+            fragments = protein_str.split('*')
+            cumulative = 0
+            for fragment in fragments:
+                frag_end = cumulative + len(fragment)
+                if cumulative <= hit_aa_in_frame < frag_end and len(fragment) >= 70:
+                    best_protein = fragment
+                    best_length = len(fragment)
+                    break
+                cumulative = frag_end + 1  # +1 accounts for the stop codon
+        except Exception:
+            pass
+
+        # Step 2: fallback — longest ORF across all 3 frames (original behaviour)
+        if best_protein is None:
+            for frame in range(3):
+                try:
+                    protein_seq = dna_seq[frame:].translate(to_stop=False)
+                    protein_str = str(protein_seq).rstrip('*')
+                    fragments = protein_str.split('*')
+                    for fragment in fragments:
+                        if len(fragment) >= 70 and len(fragment) > best_length:
+                            best_length = len(fragment)
+                            best_protein = fragment
+                except Exception:
+                    continue
 
         if best_protein:
             original_length = len(best_protein)
