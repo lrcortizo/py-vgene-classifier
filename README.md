@@ -46,6 +46,51 @@ Ferret    TRAV      —      76.9%     96.9%
 ```
 Zero misclassifications across all three species and 5,524 predictions.
 
+## 🆕 What's New in v3.0.0
+
+### RSS-CAC Boundary Correction, V3 Encoder, and FR1 Pattern Fixes (April 2026)
+
+**Change 1 — RSS-CAC C-terminal boundary correction (`06_extract_candidates.py`):**
+`extract_sequences()` now searches for the RSS CAC heptamer within ±15 nt of the
+predicted protein C-terminus. When found closer to the ORF start than the current
+endpoint, `best_protein` is truncated to the exact exon boundary. Conservative:
+no change when CAC is absent. Corrects 1,646/3,691 candidates in Pongo pygmaeus
+(+2.9 pp precision). Based on Olivieri 2019: CAC conserved in all jawed vertebrates.
+
+**Change 2 — TerminalRegionEncoderV3 (2045 dims):**
+New encoder class extending the 2000-dim V2 encoding with 45 additional features:
+- **AA frequency histogram (20 dims):** normalized marginal distribution of 20 standard AA
+- **Physicochemical properties (20 dims):** 5 AAindex1 scales (Kyte-Doolittle hydrophobicity,
+  molecular volume, net charge, B-factor flexibility, Zimmerman polarity) × mean/std ×
+  N-terminal 40aa / C-terminal 40aa
+- **Conserved motif flags (5 dims):** binary flags for C23, W41, YYC, C104, WGXG using
+  relative search windows (robust to FR1 length variation across species)
+
+Training with V3 encoder: `python scripts/03_train_model.py --encoder-version v3`
+Inference with V3 model: `python scripts/07_classify_candidates.py --encoder-version v3`
+
+**Change 3 — FR1 pattern expansion to 47 patterns:**
+Four new IGHV patterns added, fixing N-terminal contamination on specific mouse families:
+- `QVTL` — IGHV VH2 family (primates, e.g. Pongo pygmaeus IGHV2-48)
+- `ETTLTQ`/`ETTVTQ` — IGKV ETT family (mouse IGKV5-2)
+- `QAYL` — IGHV VH4-like family (mouse IGHV1-12; was contributing 16aa junk prefix)
+- `QREL` — IGHV VH4-like family (mouse IGHV1-49)
+0 false positives in IGKV/TRAV/TRBV training data for all four patterns.
+
+**V3 model validation results (v3fix, after FR1 pattern corrections):**
+```
+Species   Locus   v2.2.0    v3.0.0    Change
+────────────────────────────────────────────────
+Mouse     IGHV    94.4%     95.3%     +0.9pp
+          IGKV    97.0%     99.0%     +2.0pp
+          TRAV    92.7%     92.7%     —
+          TRBV    95.5%     95.5%     —
+          Prec.   95.4%     97.4%     +2.0pp
+Pongo     All     96.1%     96.1%     —
+          Prec.   97.0%     99.9%     +2.9pp
+```
+Remaining open issue: 185 IGKV→IGHV misclassifications at 88.4% BLAST identity.
+
 ## 🆕 What's New in v2.2.0
 
 ### FR1 Pattern Expansion + Frame-Aware Extraction (April 2026)
@@ -1140,6 +1185,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 | Version | Date | Highlights |
 |---|---|---|
+| v3.0.0 | Apr 2026 | RSS-CAC correction, TerminalRegionEncoderV3 (2045 dims), 47 FR1 patterns |
 | v2.2.0 | Apr 2026 | FR1 pattern expansion (43 patterns), frame-aware extraction, two-pass TBLASTN |
 | v2.1.0 | Apr 2026 | TCR FR1 pattern fix — TRAV/TRBV recall cross-species restored |
 | v2.0.0 | Mar 2026 | Terminal-region encoding, hard negatives, 93% recall on mouse |
@@ -1150,6 +1196,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ---
 
-**Last updated:** April 19, 2026
-**Pipeline status:** ✅ Production-ready
-**Validation:** ✅ Cross-species (human, mouse, ferret) — IG ≥90%, TCR ≥83–100%
+**Last updated:** April 24, 2026
+**Pipeline status:** Production-ready
+**Validation:** Cross-species (human, mouse, ferret, Pongo pygmaeus) — IG >=90%, TCR >=83-100%
