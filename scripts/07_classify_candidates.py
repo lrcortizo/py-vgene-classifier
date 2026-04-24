@@ -30,17 +30,17 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.features.terminal_encoding import TerminalRegionEncoder
+from src.features.terminal_encoding import TerminalRegionEncoder, TerminalRegionEncoderV3
 from src.models.cnn_terminal import CNN_TerminalEncoding
 
 # Class names
 CLASS_NAMES = ['background', 'IGHV', 'IGKV', 'TRAV', 'TRBV']
 
 
-def load_model(model_path, num_classes, device):
+def load_model(model_path, num_classes, device, input_size=2000):
     """Load trained model with terminal encoding."""
     print(f"   Loading model architecture...")
-    model = CNN_TerminalEncoding(input_size=2000, num_classes=num_classes)
+    model = CNN_TerminalEncoding(input_size=input_size, num_classes=num_classes)
 
     print(f"   Loading weights from {model_path}...")
     model.load_state_dict(torch.load(model_path, map_location=device))
@@ -53,9 +53,10 @@ def load_model(model_path, num_classes, device):
     return model
 
 
-def predict_sequences(sequences, model, device, batch_size=64):
+def predict_sequences(sequences, model, device, batch_size=64, encoder=None):
     """Predict class for each sequence using terminal encoding."""
-    encoder = TerminalRegionEncoder()
+    if encoder is None:
+        encoder = TerminalRegionEncoder()
     results = []
 
     print(f"\n   Processing {len(sequences):,} sequences in batches of {batch_size}...")
@@ -135,13 +136,23 @@ def main():
                        help="Save CSV with all predictions")
     parser.add_argument("--batch-size", type=int, default=64,
                        help="Batch size (default: 64)")
+    parser.add_argument("--encoder-version", choices=["v2", "v3"], default="v2",
+                       help="Encoder version: v2=2000 dims (default), v3=2045 dims")
 
     args = parser.parse_args()
+
+    # Select encoder and input_size
+    if args.encoder_version == "v3":
+        encoder = TerminalRegionEncoderV3()
+        input_size = 2045
+    else:
+        encoder = TerminalRegionEncoder()
+        input_size = 2000
 
     print("=" * 80)
     print("V-GENE PREDICTION - v2.1.0")
     print("=" * 80)
-    print(f"Encoding: Terminal-region (N/C-term + dipeptides)")
+    print(f"Encoding: Terminal-region {args.encoder_version.upper()} ({input_size} dims)")
     print(f"Model: {args.model}")
     print(f"Threshold: {args.threshold}")
     print("=" * 80)
@@ -157,7 +168,7 @@ def main():
     # Load model
     print("🔨 LOADING MODEL")
     print("-" * 80)
-    model = load_model(args.model, args.num_classes, device)
+    model = load_model(args.model, args.num_classes, device, input_size=input_size)
     print()
 
     # Load candidates
@@ -171,7 +182,7 @@ def main():
     # Predict
     print("🔮 PREDICTING")
     print("-" * 80)
-    results = predict_sequences(candidates, model, device, args.batch_size)
+    results = predict_sequences(candidates, model, device, args.batch_size, encoder=encoder)
     print(f"   ✅ Predictions complete: {len(results):,} sequences")
     print()
 
