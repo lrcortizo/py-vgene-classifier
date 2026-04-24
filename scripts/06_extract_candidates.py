@@ -49,6 +49,8 @@ VGENE_START_PATTERNS = [
     # ── IGHV ────────────────────────────────────────────────────────────────
     r'[QE]VQ[LV]',              # EVQL, QVQL
     r'QVTL',                    # IGHV VH2 family (primates)
+    r'QAYL',                    # IGHV VH4-like family (mouse IGHV1-12, IGHV1-49)
+    r'QREL',                    # IGHV VH4-like family (mouse IGHV1-49)
     # ── IGKV / IGLV ─────────────────────────────────────────────────────────
     r'D[ILV][VKQ][MLV]TQ',     # DIVMTQ, DIKMTQ, DIQMTQ
     r'Q[AS]VL[TV]Q',            # QSVLTQ, QAVLTQ
