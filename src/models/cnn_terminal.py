@@ -40,9 +40,13 @@ class CNN_TerminalEncoding(nn.Module):
             nn.MaxPool1d(2)
         )
         
-        # Calculate flatten size
-        # 2000 -> 1000 -> 500 -> 250
-        flatten_size = 256 * 250
+        # Dynamic flatten size: 3x MaxPool1d(2) halves the dimension each time
+        # input_size=2000 -> 1000 -> 500 -> 250 -> flatten=64000 (unchanged)
+        # input_size=2045 -> 1022 -> 511 -> 255 -> flatten=65280 (V3 encoder)
+        _s = input_size
+        for _ in range(3):
+            _s = _s // 2
+        flatten_size = 256 * _s
         
         self.fc = nn.Sequential(
             nn.Linear(flatten_size, 128),
