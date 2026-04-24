@@ -199,6 +199,9 @@ TRBV     91.5%     97.0%         43/47
 TOTAL    96.1%     97.0%        174/181
 ```
 Zero misclassifications. First validation on a species absent from training data.
+Second pass TBLASTN recovers additional genes. TRBV2-x families in Pongo pygmaeus
+remain unrecovered due to TBLASTN anchoring consistently within the gene body rather
+than at FR1.
 
 ## 🚀 Quick Start
 
