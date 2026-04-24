@@ -103,6 +103,14 @@ Nunca asumir que el paso anterior funcionó sin ver el output.
   - V3 requires more training data or stronger regularization
   - Next step: investigate TRBV training class imbalance
 
+## V3 model status (2045 dims, v3_multispecies/best_model.pt)
+- TRBV precision fix: QAYL+QREL patterns added to 06_extract_candidates.py
+- Mouse validation after fix: IGHV 95.3%, IGKV 99%, TRAV 92.7%, TRBV 95.5%
+- TRBV precision recovered: 8.4% -> 97.4%
+- Remaining issue: IGKV->IGHV misclassifications at 88.4% identity (185 cases)
+- V3 model now competitive with V2 model across all species
+- Next: investigate IGKV->IGHV pattern, then bootstrapping iteration
+
 ## Hardware disponible
 - RTX 4060 (8GB VRAM): entrenamiento principal
 - Si OOM: reducir batch-size a 32 antes de cualquier otra cosa
