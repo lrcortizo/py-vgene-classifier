@@ -91,6 +91,18 @@ Nunca asumir que el paso anterior funcionó sin ver el output.
   in Pongo pygmaeus by correcting C-terminal using CAC heptamer.
   1,646/3,691 candidates corrected in first test.
 
+## Resultados modelo V3
+- V3 model (v3_multispecies/best_model.pt, 2045 dims):
+  - TRBV recall improves: mouse +4.5pp, Pongo +2.1pp
+  - TRAV recall improves: ferret +5.8pp
+  - BUT: TRBV precision collapses in mouse (95.4% -> 8.4%)
+    - 454 candidates classified as TRBV, only 22 correct
+    - All misclassifications are TRBV->IGHV at 100% identity
+    - Likely overfitting: V3 learned TRBV-specific mouse features
+  - Current best model remains: v2_multispecies_r3/best_model.pt
+  - V3 requires more training data or stronger regularization
+  - Next step: investigate TRBV training class imbalance
+
 ## Hardware disponible
 - RTX 4060 (8GB VRAM): entrenamiento principal
 - Si OOM: reducir batch-size a 32 antes de cualquier otra cosa
