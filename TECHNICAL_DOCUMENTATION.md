@@ -305,4 +305,31 @@ identity. Under investigation — likely IGKV/IGHV boundary cases in training da
 
 ---
 
+## Known Limitations
+
+### IGHV1-26*01 (mouse) — Truncated FR1 due to insufficient extension
+
+**Symptom:** 185 IGKV predictions in mouse v3fix validation that BLAST back to IGHV
+at 88.4% identity.
+
+**Root cause:** All 185 are duplicate predictions of the same single sequence.
+TBLASTN anchors approximately 8 aa into the gene body (skipping the first 8 aa of FR1:
+`EVQLQQSG`). The `--extend 150` window is insufficient to recover the true V-gene start
+for this locus. The extracted sequence begins with `AGEPGASVK`, a non-canonical
+N-terminal that does not match any VGENE_START_PATTERNS.
+
+**Classifier behavior:** The model sees an unusual N-terminal and correctly identifies
+it as not fitting the canonical IGHV profile. It classifies as IGKV with prob=0.85.
+This is internally consistent behavior — the error is in extraction, not classification.
+
+**Impact:** 1 unique gene lost (IGHV1-26*01), not 185 independent errors.
+The gene appears 185 times because multiple TBLASTN hits anchor to the same locus from
+different query sequences.
+
+**Fix (not yet implemented):** Increase `--extend` to 200 nt, or implement adaptive
+extension when no FR1 pattern is found in the extracted candidate (re-extract with
+larger window before discarding).
+
+---
+
 *End of TECHNICAL_DOCUMENTATION.md*
