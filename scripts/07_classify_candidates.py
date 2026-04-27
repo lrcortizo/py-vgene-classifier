@@ -19,6 +19,7 @@ USAGE:
 import os
 import sys
 import argparse
+import re
 import pandas as pd
 import numpy as np
 import torch
@@ -35,6 +36,37 @@ from src.models.cnn_terminal import CNN_TerminalEncoding
 
 # Class names
 CLASS_NAMES = ['background', 'IGHV', 'IGKV', 'TRAV', 'TRBV']
+
+# FR1 start patterns (mirrored from 06_extract_candidates.py).
+# Used to filter truncated/internal sequences before they reach the encoder.
+FR1_PATTERNS = [
+    # IGHV
+    r'[QE]VQ[LV]', r'QVTL', r'QAYL', r'QREL',
+    # IGKV / IGLV
+    r'D[ILV][VKQ][MLV]TQ', r'Q[AS]VL[TV]Q', r'Q[AS]V[LV]TQ', r'ETT[LV]TQ',
+    # TRAV
+    r'[AG][DNQ][SKTVRGN]V[TNVSA]Q', r'[GQKEI][QEKLMNIVDRSG][QKEVDLNIVGSA]V[EKD]Q',
+    r'[GQK][QKE][QKVLN]V[QK]Q', r'[QE][QKE]L[NQKE][QS]',
+    r'[IGSDV][DLSAV][AGS]K[TS][TQ]', r'[QS][QK][IK][KHE][QHF]',
+    # TRBV
+    r'[DNEAGHSK][ADSGEP][GA][VIA][TISQAV]Q', r'D[ADGEPSVK][GAEVQKRDP][VI][TISQF]Q',
+    r'DT[EGAKD][VI][TSFIQ]Q', r'[ENDHSAG][ASDHE][EAQKDGT][VI][TS]Q',
+    r'GA[LMV][VLI][TSIQ]Q', r'[EA][PGS][EA][VI][TSIQ]Q', r'[AS]QT[ILV][HNQ]',
+    r'D[VA][KRM][VI][TS]Q',
+    # TRAV additional (v2.2.0)
+    r'GQ[SNK][LIV][EQD]Q', r'KDQ[VI][FY]Q', r'[ED]NQ[VK][EQH]', r'R[KNQ]EV[EK]',
+    r'GES[VT][GL]', r'AQK[IV][TI]Q', r'[SD]QQ[EGK][EQ]', r'KQE[VK][TQ]Q',
+    r'GQQ[VK][MQVK]Q', r'DQQV[KR]Q', r'EDKV[VIMQ]', r'SNSV[KR]Q',
+    # TRBV additional (v2.2.0)
+    r'VTLLEQ', r'GPKVLQ', r'ETAVFQ', r'NTKITQ', r'[DN]SGVVQ', r'DTTVKQ',
+    r'GGIITQ', r'GALVYQ', r'DAAVTQ', r'VAGVTQ', r'NSKVIQ', r'DMKVTQ', r'SVLLYQ',
+]
+
+
+def has_fr1_pattern(sequence: str, window: int = 30) -> bool:
+    """Return True if any FR1 start pattern matches within the first `window` aa."""
+    prefix = sequence[:window]
+    return any(re.search(p, prefix) for p in FR1_PATTERNS)
 
 
 def load_model(model_path, num_classes, device, input_size=2000):
@@ -53,13 +85,17 @@ def load_model(model_path, num_classes, device, input_size=2000):
     return model
 
 
-def predict_sequences(sequences, model, device, batch_size=64, encoder=None):
+def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
+                      require_fr1=False):
     """Predict class for each sequence using terminal encoding."""
     if encoder is None:
         encoder = TerminalRegionEncoder()
     results = []
+    fr1_filtered = 0
 
     print(f"\n   Processing {len(sequences):,} sequences in batches of {batch_size}...")
+    if require_fr1:
+        print(f"   FR1 filter: ON (window=30aa)")
 
     for i in range(0, len(sequences), batch_size):
         batch = sequences[i:i+batch_size]
@@ -69,12 +105,25 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None):
         valid_records = []
 
         for rec in batch:
+            # FR1 filter: sequences without a recognisable V-gene start in the
+            # first 30aa are redirected to background without reaching the model.
+            if require_fr1 and not has_fr1_pattern(str(rec.seq)):
+                fr1_filtered += 1
+                results.append({
+                    'record': rec,
+                    'predicted_class': 0,
+                    'predicted_locus': 'background',
+                    'probability': 1.0,
+                    'prob_background': 1.0,
+                    **{f'prob_{c}': 0.0 for c in CLASS_NAMES if c != 'background'},
+                })
+                continue
             try:
                 encoding = encoder.encode(str(rec.seq))
                 batch_encodings.append(encoding)
                 valid_records.append(rec)
             except Exception as e:
-                print(f"   ⚠️  Warning: Could not encode {rec.id}: {e}")
+                print(f"   Warning: Could not encode {rec.id}: {e}")
                 continue
 
         if not batch_encodings:
@@ -115,6 +164,9 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None):
         if (i // batch_size + 1) % 10 == 0:
             print(f"   Processed: {min(i+batch_size, len(sequences)):,}/{len(sequences):,}")
 
+    if require_fr1 and fr1_filtered:
+        print(f"   FR1 filter: {fr1_filtered:,} sequences redirected to background "
+              f"(no FR1 pattern in first 30aa)")
     return results
 
 
@@ -138,6 +190,10 @@ def main():
                        help="Batch size (default: 64)")
     parser.add_argument("--encoder-version", choices=["v2", "v3"], default="v2",
                        help="Encoder version: v2=2000 dims (default), v3=2045 dims")
+    parser.add_argument("--require-fr1", action=argparse.BooleanOptionalAction,
+                        default=None,
+                        help="Filter sequences without FR1 pattern in first 30aa. "
+                             "Default: True for v3, False for v2.")
 
     args = parser.parse_args()
 
@@ -149,12 +205,17 @@ def main():
         encoder = TerminalRegionEncoder()
         input_size = 2000
 
+    # FR1 filter default: on for v3, off for v2 (backward compatibility)
+    require_fr1 = args.require_fr1 if args.require_fr1 is not None \
+                  else (args.encoder_version == "v3")
+
     print("=" * 80)
     print("V-GENE PREDICTION - v2.1.0")
     print("=" * 80)
     print(f"Encoding: Terminal-region {args.encoder_version.upper()} ({input_size} dims)")
     print(f"Model: {args.model}")
     print(f"Threshold: {args.threshold}")
+    print(f"FR1 filter: {'ON' if require_fr1 else 'OFF'}")
     print("=" * 80)
     print()
 
@@ -182,7 +243,8 @@ def main():
     # Predict
     print("🔮 PREDICTING")
     print("-" * 80)
-    results = predict_sequences(candidates, model, device, args.batch_size, encoder=encoder)
+    results = predict_sequences(candidates, model, device, args.batch_size,
+                                encoder=encoder, require_fr1=require_fr1)
     print(f"   ✅ Predictions complete: {len(results):,} sequences")
     print()
 
