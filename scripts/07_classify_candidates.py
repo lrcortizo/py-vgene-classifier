@@ -42,12 +42,19 @@ CLASS_NAMES = ['background', 'IGHV', 'IGKV', 'TRAV', 'TRBV']
 FR1_PATTERNS = [
     # IGHV
     r'[QE]VQ[LV]', r'QVTL', r'QAYL', r'QREL',
+    r'VQL[QV]',               # IGHV truncated: missing first aa (VQLQ/VQLV)
+    r'SQL[QV]',               # IGHV truncated variant (SQLQ/SQLV)
+    r'[QE]VQQ',               # IGHV variant (QVQQ/EVQQ)
+    r'GAEL[VKR]',             # IGHV FR1 internal start (SGAELV/SGAELK/SGAELR)
+    r'[EF][VF]KL[QE]Q',      # IGHV leader: EVKLQQ/EFKLQQ (IGHV1-39/43 family)
     # IGKV / IGLV
     r'D[ILV][VKQ][MLV]TQ', r'Q[AS]VL[TV]Q', r'Q[AS]V[LV]TQ', r'ETT[LV]TQ',
+    r'[GQ][EI]NV[LI]TQ',     # IGKV4 family (GENVLTQ, QINVLTQ)
     # TRAV
     r'[AG][DNQ][SKTVRGN]V[TNVSA]Q', r'[GQKEI][QEKLMNIVDRSG][QKEVDLNIVGSA]V[EKD]Q',
     r'[GQK][QKE][QKVLN]V[QK]Q', r'[QE][QKE]L[NQKE][QS]',
     r'[IGSDV][DLSAV][AGS]K[TS][TQ]', r'[QS][QK][IK][KHE][QHF]',
+    r'[QS]SP[QE]SLT',         # TRAV14 family (QSPQSLT, SSPESLT)
     # TRBV
     r'[DNEAGHSK][ADSGEP][GA][VIA][TISQAV]Q', r'D[ADGEPSVK][GAEVQKRDP][VI][TISQF]Q',
     r'DT[EGAKD][VI][TSFIQ]Q', r'[ENDHSAG][ASDHE][EAQKDGT][VI][TS]Q',
@@ -64,9 +71,14 @@ FR1_PATTERNS = [
 
 
 def has_fr1_pattern(sequence: str, window: int = 30) -> bool:
-    """Return True if any FR1 start pattern matches within the first `window` aa."""
+    """Return True if any FR1 start pattern matches within the first `window` aa,
+    or within positions 15-50 (handles ~15-25aa signal peptide prefixes)."""
     prefix = sequence[:window]
-    return any(re.search(p, prefix) for p in FR1_PATTERNS)
+    if any(re.search(p, prefix) for p in FR1_PATTERNS):
+        return True
+    # Second pass: check window[15:50] to handle signal-peptide-prefixed candidates
+    leader_window = sequence[15:50]
+    return any(re.search(p, leader_window) for p in FR1_PATTERNS)
 
 
 def load_model(model_path, num_classes, device, input_size=2000):
