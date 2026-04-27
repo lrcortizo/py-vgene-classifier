@@ -332,4 +332,54 @@ larger window before discarding).
 
 ---
 
+## v3_bootstrap2c — Final Validation Results
+
+Model trained on `data/processed_v3/train_bootstrap2.csv` (60,689 sequences:
+v2.2 + 507 bootstrapped + 48 Xenopus IMGT reference sequences).
+
+### FR1 Filter
+
+Sequences without a recognisable FR1 start pattern in the first 30 aa (or within
+positions 15–50 for signal-peptide-prefixed candidates) are classified as background
+before reaching the encoder, preventing truncated/internal fragments from causing
+locus misclassification.
+
+**FR1 filter impact by species:**
+
+| Species | Candidates | FR1-filtered | % filtered |
+|---|---|---|---|
+| Mus musculus | 20,489 | 5,250 | 25.6% |
+| Pongo pygmaeus | 3,649 | 567 | 15.5% |
+| Mustela putorius furo | 3,916 | 949 | 24.2% |
+| Xenopus laevis | 1,184 | 419 | 35.4% |
+
+**Limitation:** The filter works well for mammals but over-filters divergent taxa.
+Xenopus has 35.4% of candidates filtered, and TRBV recall remains at 16.7% (2/12)
+because Xenopus TRBV sequences share no FR1 patterns with the mammalian training
+corpus. **Recommendation:** use `--no-require-fr1` for species with >200 Ma
+divergence from mammals (amphibians, teleosts, chondrichthyes).
+
+### Per-species validation
+
+| Species | IGHV recall | IGKV recall | TRAV recall | TRBV recall | Precision |
+|---|---|---|---|---|---|
+| Mus musculus (v3bootstrap2c) | **95.3%** | **99.0%** | **92.7%** | **95.5%** | **99.9%** |
+| Pongo pygmaeus (v3bootstrap2) | 100.0% | 83.3% | 66.7% | 93.6% | 99.4% |
+| Mustela putorius furo (v3bootstrap2) | 92.9% | 92.5% | 90.4% | 85.0% | 100.0% |
+| Xenopus laevis (v3bootstrap2) | 71.1% | N/A | N/A | 16.7% | 99.0% |
+
+### Mouse model evolution
+
+| Model | IGHV | IGKV | TRAV | TRBV | Precision | Notes |
+|---|---|---|---|---|---|---|
+| v2_multispecies_r3 | 94.4% | 97.0% | 92.7% | 95.5% | 95.4% | Baseline |
+| v3_multispecies (v3fix) | 95.3% | 99.0% | 92.7% | 95.5% | 97.4% | V3 encoder |
+| v3_bootstrap2c | **95.3%** | **99.0%** | **92.7%** | **95.5%** | **99.9%** | + bootstrapping + FR1 filter |
+
+v3_bootstrap2c matches v3fix recall on all loci while improving precision by +2.5 pp
+and eliminating systematic FP from truncated sequence fragments (KATGYTFTKY and
+similar internal IGHV fragments).
+
+---
+
 *End of TECHNICAL_DOCUMENTATION.md*
