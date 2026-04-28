@@ -194,12 +194,13 @@ structural features not present in mammals).
 
 **Validated species:**
 
-| Species | Genome | In training? | Model used |
+| Species | Genome | In training? | Models used |
 |---|---|---|---|
-| Mus musculus | GCF_000001635.27 | Yes | v2_multispecies_r3 / v3_multispecies |
-| Homo sapiens | GRCh38 | Yes | v2_multispecies_r3 |
-| Mustela putorius furo | GCF_011764305.1 | Yes | v2_multispecies_r3 |
-| Pongo pygmaeus | GCF_028885625.2 | No | v2_multispecies_r3 / v3_multispecies |
+| Mus musculus | GCF_000001635.27 | Yes | v2_multispecies_r3, v3_bootstrap3 |
+| Homo sapiens | GRCh38 | Yes | v2_multispecies_r3, v3_bootstrap3 |
+| Mustela putorius furo | GCF_011764305.1 | Yes | v2_multispecies_r3, v3_bootstrap3 |
+| Pongo pygmaeus | GCF_028885625.2 | No | v2_multispecies_r3, v3_bootstrap3 |
+| Xenopus laevis | — | No (IGHV/TRBV ref only) | v2_multispecies_r3, v3_bootstrap3 |
 
 ---
 
@@ -297,14 +298,17 @@ to be misclassified as TRBV with prob_TRBV median=1.0.
 
 #### Pongo pygmaeus (mPonPyg2, out-of-training)
 
-| Locus | v2_multispecies_r3 | v3_multispecies | Delta |
+| Locus | v2_multispecies_r3 | v3_bootstrap3 | Delta |
 |---|---|---|---|
-| IGHV recall | 100.0% | 100.0% | — |
-| IGKV recall | 100.0% | 100.0% | — |
-| TRAV recall | 92.5% | 94.6% | +2.1 pp |
+| IGHV recall | 96.6% | 100.0% | +3.4 pp |
+| IGKV recall | 97.1% | 100.0% | +2.9 pp |
+| TRAV recall | 92.5% | 95.0% | +2.5 pp |
 | TRBV recall | 91.5% | 93.6% | +2.1 pp |
-| Overall recall | 96.1% | 96.1% | — |
-| Precision | 97.0% | 99.9% | +2.9 pp |
+| Precision | 98.3% | 94.0% | −4.3 pp |
+
+Note: v2 precision (98.3%) is IGHV-only; v3 precision (94.0%) reflects the full
+run including TRAV where precision dropped to 66.7% (95.0% recall but more false
+positives). Per-locus detail in `results/METRICS_HISTORY.md`.
 
 **Known remaining issue:** 185 IGKV candidates classified as IGHV at 88.4% BLAST
 identity. Under investigation — likely IGKV/IGHV boundary cases in training data.
@@ -439,6 +443,29 @@ R = Recall (unique IMGT genes / total IMGT reference), P = Precision (row-level)
 Note: v3_bootstrap3 TRAV recall improves (+4.5pp) because FR1 filter OFF recovers
 previously discarded candidates. IGHV precision drops vs bootstrap2c because more
 candidates enter the classifier, including some borderline cases.
+
+### Human and Ferret Comparisons (v2.2 → v3_bootstrap3)
+
+#### Human (GRCh38)
+
+| Locus | v2_multispecies_r3 | v3_bootstrap3 | Delta |
+|---|---|---|---|
+| IGHV recall | 96.1% | 96.1% | — |
+| IGKV recall | 97.6% | 97.6% | — |
+| TRAV recall | 68.9% | 88.9% | **+20.0 pp** |
+| TRBV recall | 85.4% | 85.4% | — |
+
+TRAV gain driven by addition of teleost TRAV training sequences, which share
+structural features with the previously unrecovered human TRAV families.
+
+#### Ferret (*Mustela putorius furo* — GCF_011764305.1)
+
+| Locus | v2_multispecies_r3 | v3_bootstrap3 | Delta |
+|---|---|---|---|
+| IGHV recall | 92.9% | 95.2% | +2.3 pp |
+| IGKV recall | 90.0% | 92.5% | +2.5 pp |
+| TRAV recall | 76.9% | 88.5% | **+11.6 pp** |
+| TRBV recall | 85.0% | 85.0% | — |
 
 ### Key Delta v2.2 → v3_bootstrap3
 
