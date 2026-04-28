@@ -1,4 +1,4 @@
-# V-Gene Classifier v2.2.0
+# V-Gene Classifier v3.0.0
 
 Deep learning pipeline for automated V-gene discovery and classification in vertebrate genomes using terminal-region encoding and multiclass CNN.
 
@@ -188,65 +188,68 @@ Pipeline            Manual      Automated   Automated   Automated   ✅
 - **Reproducible**: Fixed seeds, versioned data, documented parameters
 - **Publication-ready**: Comprehensive validation and metrics
 
-## 📊 Validation Results (v2.1.0 — Three Species)
+## 📊 Validation Results (v3_bootstrap3 — Five Species)
 
-**Model:** v2_multispecies_r3 (trained on 113 mammalian + 16 reptile species; "r3" = run 3)
-Validated on out-of-training species (Pongo pygmaeus): 96.1% recall in primates (Pongo pygmaeus, IGHV/IGKV 100%), 97.0% precision.
+**Model:** v3_bootstrap3 — v3 encoder (2045-dim), trained on 60,883 sequences (mammalian + teleost).  
+Full metrics history and methodology in [`results/METRICS_HISTORY.md`](results/METRICS_HISTORY.md).
 
-### Mouse (C57BL/6J — GRCm39)
+### Mouse (*Mus musculus* — GRCm39)
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV     94.4%     95.1%        322/341
-IGKV     97.0%     95.7%         97/100
-TRAV     92.7%     100.0%       101/109
-TRBV     95.5%     100.0%        21/22  †
+IGHV     95.3%     93.4%        325/341
+IGKV     99.0%     86.5%         99/100
+TRAV     97.2%     95.5%        106/109
+TRBV     95.5%    100.0%         21/22
 ───────────────────────────────────────────────
-TOTAL    94.6%     95.4%        541/572
 ```
 
 ### Human (GRCh38)
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV     96.1%     94.9%         49/51
-IGKV     97.6%     92.5%         41/42
-TRAV    100.0%     98.6%         45/45  †
-TRBV     83.3%     95.4%         40/48
+IGHV     96.1%     91.0%         49/51
+IGKV     97.6%     92.4%         41/42
+TRAV     88.9%     84.0%         40/45
+TRBV     85.4%     94.1%         41/48
 ───────────────────────────────────────────────
-TOTAL    94.1%     94.1%        175/186
 ```
 
-### Ferret (*Mustela putorius furo*)
+### Ferret (*Mustela putorius furo* — GCF_011764305.1)
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV     92.9%     87.1%        39/42
-IGKV     90.0%     99.7%        36/40
-TRAV     76.9%     96.9%        40/52
-TRBV     85.0%     100.0%       17/20
+IGHV     95.2%     82.7%         40/42
+IGKV     92.5%     99.8%         37/40
+TRAV     88.5%     94.7%         46/52
+TRBV     85.0%    100.0%         17/20
 ───────────────────────────────────────────────
-TOTAL    85.7%     90.9%        132/154
 ```
-
-† With two-pass TBLASTN (see [Two-pass TBLASTN](#two-pass-tblastn-for-difficult-v-gene-families)).
-Standard-pass only: Human TRAV 75.6%, Mouse TRBV 50.0% (11/22).
 
 ### Pongo pygmaeus (*Bornean orangutan* — mPonPyg2) — Out-of-training ✓
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV    100.0%     97.0%         59/59
-IGKV    100.0%     97.0%         35/35
-TRAV     92.5%     97.0%         37/40
-TRBV     91.5%     97.0%         43/47
+IGHV    100.0%     94.0%         59/59
+IGKV    100.0%     91.9%         35/35
+TRAV     95.0%     66.7%         38/40
+TRBV     93.6%     97.9%         44/47
 ───────────────────────────────────────────────
-TOTAL    96.1%     97.0%        174/181
 ```
-Zero misclassifications. First validation on a species absent from training data.
-Second pass TBLASTN recovers additional genes. TRBV2-x families in Pongo pygmaeus
-remain unrecovered due to TBLASTN anchoring consistently within the gene body rather
-than at FR1.
+
+### Xenopus laevis — Out-of-training, non-mammalian ✓
+```
+Locus    Recall    Precision    Unique Found
+───────────────────────────────────────────────
+IGHV     71.1%    100.0%         27/38
+IGKV      N/A       N/A            —
+TRAV      N/A       N/A            —
+TRBV     16.7%     42.9%          2/12
+───────────────────────────────────────────────
+```
+No IMGT reference available for IGKV/TRAV in *X. laevis*. TRBV precision drop
+relative to v2.2 (100.0% → 42.9%): teleost TRBV sequences added in bootstrap3
+share structural features with amphibian TRBV, increasing false-positive rate.
 
 ## 🚀 Quick Start
 
@@ -1181,7 +1184,7 @@ Contributions are welcome! Please:
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-**Current version: 2.2.0** (April 2026)
+**Current version: 3.0.0** (April 2026)
 
 | Version | Date | Highlights |
 |---|---|---|

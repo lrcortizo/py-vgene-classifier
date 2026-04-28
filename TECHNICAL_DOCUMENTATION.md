@@ -154,22 +154,28 @@ flatten_size = 256 * _s
 
 ## Training Data
 
-**Active training corpus (v2.2):** `data/processed_v2.2/train_multispecies_multiclass.csv`
+**Active training corpus (bootstrap3):** `data/processed_v3/train_bootstrap3.csv`
 
-| Class | Label | Sequences | Species |
+| Class | Label | Sequences | Notes |
 |---|---|---|---|
-| background | 0 | 45,100 | N/A (hard negatives) |
-| IGHV | 1 | 4,584 | ~130 vertebrate species |
-| IGKV | 2 | 3,207 | ~130 vertebrate species |
-| TRAV | 3 | 4,457 | ~130 vertebrate species |
-| TRBV | 4 | 2,786 | 130 species (12 from Mus musculus) |
-| **Total** | | **60,134** | |
+| background | 0 | 45,100 | Hard negatives (MHC, C-regions, Ig superfamily) |
+| IGHV | 1 | 4,824 | ~130 vertebrate species |
+| IGKV | 2 | 3,316 | ~130 vertebrate species |
+| TRAV | 3 | 4,741 | ~130 vertebrate species + 159 teleost† |
+| TRBV | 4 | 2,902 | ~130 vertebrate species + 35 teleost† |
+| **Total** | | **60,883** | |
 
-**Background:V-gene ratio:** 3:1 (45,100 background vs 15,034 V-genes)
+†Teleost sequences added in bootstrap3:
+- 132 TRAV *Danio rerio*, 18 TRAV *Takifugu rubripes*, 9 TRAV *Oncorhynchus mykiss*
+- 35 TRBV *Oncorhynchus mykiss*
+- Reference files: `data/reference/imgt_teleostei/`
 
-**Known imbalance:** TRBV is underrepresented relative to other V-gene classes (4.6%
-vs 7.6% for IGHV). Mouse TRBV has only 12 training sequences (0.43% of TRBV class),
-which caused the V3 precision collapse on mouse TRBV before FR1 pattern fixes.
+**Background:V-gene ratio:** 2.94:1 (45,100 background vs 15,783 V-genes)
+
+**Known imbalance:** TRBV remains the smallest V-gene class (4.8% of total).
+Teleost TRBV addition (+35 sequences) modestly improves amphibian cross-reactivity
+but also reduces TRBV precision on *Xenopus laevis* (teleost and amphibian TRBV share
+structural features not present in mammals).
 
 ---
 
@@ -340,11 +346,17 @@ v2.2 + 507 bootstrapped + 48 Xenopus IMGT reference sequences).
 ### FR1 Filter
 
 Sequences without a recognisable FR1 start pattern in the first 30 aa (or within
-positions 15–50 for signal-peptide-prefixed candidates) are classified as background
-before reaching the encoder, preventing truncated/internal fragments from causing
-locus misclassification.
+positions 15–50 for signal-peptide-prefixed candidates) can be pre-classified as
+background before reaching the encoder, preventing truncated/internal fragments from
+causing locus misclassification.
 
-**FR1 filter impact by species:**
+**Default (bootstrap3 and later): `--require-fr1` is OFF.**  
+The filter was changed from default-ON to default-OFF in commit `147400e` because it
+over-filtered divergent taxa (Xenopus 35.4%, teleosts 100% of TRBV) and caused
+recall regression in ferret TRAV/IGKV. Enable explicitly with `--require-fr1` only
+when processing well-annotated mammalian genomes and precision is the primary goal.
+
+**FR1 filter impact by species (when enabled):**
 
 | Species | Candidates | FR1-filtered | % filtered |
 |---|---|---|---|
@@ -353,11 +365,10 @@ locus misclassification.
 | Mustela putorius furo | 3,916 | 949 | 24.2% |
 | Xenopus laevis | 1,184 | 419 | 35.4% |
 
-**Limitation:** The filter works well for mammals but over-filters divergent taxa.
-Xenopus has 35.4% of candidates filtered, and TRBV recall remains at 16.7% (2/12)
-because Xenopus TRBV sequences share no FR1 patterns with the mammalian training
-corpus. **Recommendation:** use `--no-require-fr1` for species with >200 Ma
-divergence from mammals (amphibians, teleosts, chondrichthyes).
+**Limitation:** Xenopus TRBV and all teleost TRBV sequences share no FR1 patterns
+with the mammalian training corpus, so the filter eliminates valid candidates from
+divergent taxa entirely. For species with >200 Ma divergence from mammals
+(amphibians, teleosts, chondrichthyes), leave the filter OFF (default).
 
 ### Per-species validation
 
@@ -379,6 +390,65 @@ divergence from mammals (amphibians, teleosts, chondrichthyes).
 v3_bootstrap2c matches v3fix recall on all loci while improving precision by +2.5 pp
 and eliminating systematic FP from truncated sequence fragments (KATGYTFTKY and
 similar internal IGHV fragments).
+
+---
+
+---
+
+## v3_bootstrap3 — Current Model
+
+Model trained on `data/processed_v3/train_bootstrap3.csv` (60,883 sequences:
+bootstrap2 + 194 teleost sequences). This is the **active model** as of April 2026.
+
+### Changes from v3_bootstrap2c
+
+1. **Teleost sequences added** — 194 sequences from 4 teleost species:
+   - 35 TRBV *Oncorhynchus mykiss* (rainbow trout)
+   - 132 TRAV *Danio rerio* (zebrafish)
+   - 18 TRAV *Takifugu rubripes* (fugu)
+   - 9 TRAV *Oncorhynchus mykiss*
+   - Motivation: improve cross-phylum generalization for Actinopterygii genomes
+
+2. **`--require-fr1` default changed to `False`** — Commit `147400e`. See FR1 Filter
+   section above. v3_bootstrap2c was validated with the filter ON; v3_bootstrap3
+   canonical runs use the filter OFF.
+
+### Full Validation Results (v3_bootstrap3, `--require-fr1` OFF)
+
+Source of truth: [`results/METRICS_HISTORY.md`](results/METRICS_HISTORY.md)
+
+| Species | In training | IGHV R/P | IGKV R/P | TRAV R/P | TRBV R/P |
+|---------|-------------|----------|----------|----------|----------|
+| Mus musculus | Yes | 95.3%/93.4% | 99.0%/86.5% | 97.2%/95.5% | 95.5%/100.0% |
+| Homo sapiens | Yes | 96.1%/91.0% | 97.6%/92.4% | 88.9%/84.0% | 85.4%/94.1% |
+| Mustela p. furo | Yes | 95.2%/82.7% | 92.5%/99.8% | 88.5%/94.7% | 85.0%/100.0% |
+| Pongo pygmaeus | No | 100.0%/94.0% | 100.0%/91.9% | 95.0%/66.7% | 93.6%/97.9% |
+| Xenopus laevis | No (partial) | 71.1%/100.0% | N/A | N/A | 16.7%/42.9% |
+
+R = Recall (unique IMGT genes / total IMGT reference), P = Precision (row-level)
+
+### Mouse Model Evolution (all runs)
+
+| Model | IGHV | IGKV | TRAV | TRBV | Precision | Notes |
+|---|---|---|---|---|---|---|
+| v2_multispecies_r3 | 94.4% | 99.0% | 92.7% | 95.5% | 96.8% | Baseline (v2.2) |
+| v3_multispecies (v3fix) | 95.3% | 99.0% | 92.7% | 95.5% | 97.4% | V3 encoder |
+| v3_bootstrap2c | 95.3% | 99.0% | 92.7% | 95.5% | 99.9% | + bootstrapping, FR1 ON |
+| **v3_bootstrap3** | **95.3%** | **99.0%** | **97.2%** | **95.5%** | **93.4%** | + teleost, FR1 OFF |
+
+Note: v3_bootstrap3 TRAV recall improves (+4.5pp) because FR1 filter OFF recovers
+previously discarded candidates. IGHV precision drops vs bootstrap2c because more
+candidates enter the classifier, including some borderline cases.
+
+### Key Delta v2.2 → v3_bootstrap3
+
+| Species | ΔIGHV R | ΔIGKV R | ΔTRAV R | ΔTRBV R |
+|---------|---------|---------|---------|---------|
+| Mus musculus | +0.9pp | 0.0pp | +4.5pp | 0.0pp |
+| Homo sapiens | 0.0pp | 0.0pp | +20.0pp | 0.0pp |
+| Pongo pygmaeus | +3.4pp | +2.9pp | +2.5pp | +2.1pp |
+| Mustela p. furo | +2.3pp | +2.5pp | +11.6pp | 0.0pp |
+| Xenopus laevis | +5.3pp | N/A | N/A | +8.4pp |
 
 ---
 
