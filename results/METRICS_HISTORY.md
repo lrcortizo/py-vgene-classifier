@@ -14,7 +14,7 @@
 | Mus musculus | Sí | v3_bootstrap3 | 95.3% | 93.4% | 99.0% | 86.5% | 97.2% | 95.5% | 95.5% | 100.0% |
 | Homo sapiens | Sí | v2.2 | 96.1% | 95.3% | 97.6% | 92.5% | 68.9% | 98.6% | 85.4% | 97.4% |
 | Homo sapiens | Sí | v3_bootstrap3 | 96.1% | 91.0% | 97.6% | 92.4% | 88.9% | 84.0% | 85.4% | 94.1% |
-| Pongo pygmaeus | No | v2.2 | 100.0% | 98.3% | 100.0% | 94.4% | 92.5% | 88.5% | 91.5% | 97.9% |
+| Pongo pygmaeus | No | v2.2 | 96.6% | 98.3% | 97.1% | 93.9% | 92.5% | 92.8% | 91.5% | 98.4% |
 | Pongo pygmaeus | No | v3_bootstrap3 | 100.0% | 94.0% | 100.0% | 91.9% | 95.0% | 66.7% | 93.6% | 97.9% |
 | Mustela p. furo | Sí | v2.2 | 92.9% | 84.4% | 90.0% | 99.5% | 76.9% | 97.0% | 85.0% | 100.0% |
 | Mustela p. furo | Sí | v3_bootstrap3 | 95.2% | 82.7% | 92.5% | 99.8% | 88.5% | 94.7% | 85.0% | 100.0% |
@@ -29,7 +29,7 @@
 |---------|---------|---------|---------|---------|
 | Mus musculus | +0.9pp | 0.0pp | +4.5pp | 0.0pp |
 | Homo sapiens | 0.0pp | 0.0pp | +20.0pp | 0.0pp |
-| Pongo pygmaeus | 0.0pp | 0.0pp | +2.5pp | +2.1pp |
+| Pongo pygmaeus | +3.4pp | +2.9pp | +2.5pp | +2.1pp |
 | Mustela p. furo | +2.3pp | +2.5pp | +11.6pp | 0.0pp |
 | Xenopus laevis | +5.3pp | N/A | N/A | +8.4pp |
 
@@ -74,7 +74,7 @@
 | human | v3b3 | `human_v2.2/validation_v3bootstrap3` | `vgenes_v3bootstrap3.fasta` |
 | ferret | v2.2 | `ferret_v2.2/validation` | `vgenes_predicted.fasta` |
 | ferret | v3b3 | `ferret_identity60/validation_v3bootstrap3_nofr1` | `vgenes_v3bootstrap3_nofr1.fasta` |
-| pongo | v2.2 | `pongo_pygmaeus/validation_rss_v2` | `vgenes_rss_v2.fasta` |
+| pongo | v2.2 | `pongo_pygmaeus/validation` | `vgenes_predicted.fasta` |
 | pongo | v3b3 | `pongo_pygmaeus/validation_v3bootstrap3_nofr1` | `vgenes_v3bootstrap3_nofr1.fasta` |
 | xenopus | v2.2 | `xenopus_laevis/validation` | `vgenes_predicted.fasta` |
 | xenopus | v3b3 | `xenopus_laevis/validation_v3bootstrap3` | `vgenes_v3bootstrap3.fasta` |
