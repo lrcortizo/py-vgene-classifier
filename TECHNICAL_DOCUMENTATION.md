@@ -192,6 +192,10 @@ structural features not present in mammals).
 **Precision definition:**
 `precision = len(correct locus predictions) / len(total predictions above threshold)`
 
+**Centralized metrics record:** [`results/METRICS_HISTORY.md`](results/METRICS_HISTORY.md)
+contains per-species, per-locus, per-model recall and precision for all validated
+runs, with canonical validation directory references and denominator counts.
+
 **Validated species:**
 
 | Species | Genome | In training? | Models used |

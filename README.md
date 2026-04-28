@@ -62,10 +62,12 @@ See [CHANGELOG.md](CHANGELOG.md) for full details.
 | v2.0.0 | Mar 2026 | Terminal-region encoding, hard negatives, first 93%+ recall on mouse |
 | v1.x | Jan–Feb 2026 | Initial CNN classifier, multi-species training, IMGT validation |
 
+> **Metrics record:** [`results/METRICS_HISTORY.md`](results/METRICS_HISTORY.md) — centralized recall/precision table for all species, models, and validation runs.
+
 ## ✨ Key Features
 
 - **Complete automation**: Genome → TBLASTN → Extract → Classify → Validate
-- **High accuracy**: 93% recall with 99.8% precision
+- **High accuracy**: ≥95% IG recall, ≥85% TCR recall across validated species
 - **Locus classification**: Automatic IGHV/IGKV/TRAV/TRBV identification
 - **Robust to noise**: Hard negative training prevents false positives
 - **Scalable**: Handles genomes of any size
@@ -204,23 +206,36 @@ py-vgene-classifier/
 ├── data/
 │   ├── background/              # Hard negative sequences (~400)
 │   ├── background_extended/     # Expanded negatives (~8k)
-│   ├── genomes/                 # Downloaded genomes
-│   ├── raw/positive/            # IMGT V-gene references
-│   └── reference/               # IMGT/NCBI references
+│   ├── genomes/                 # Downloaded genomes (not tracked in git)
+│   ├── raw/positive/            # Curated IMGT V-gene positives
+│   ├── processed_v3/            # Active training CSVs (bootstrap3)
+│   └── reference/
+│       ├── imgt_mouse/          # Mouse IMGT reference FASTA
+│       ├── imgt_human/          # Human IMGT reference FASTA
+│       ├── imgt_ferret/         # Ferret IMGT reference FASTA
+│       ├── imgt_pongo_pygmaeus/ # Pongo IMGT reference FASTA
+│       ├── imgt_xenopus_laevis/ # Xenopus IMGT reference FASTA
+│       └── imgt_teleostei/      # Teleost reference sequences (hand-curated)
 ├── models/
-│   └── v2_multispecies_r3/      # Active model v2.2.0 (129 species, ratio 3:1, run 3)
+│   └── v3_bootstrap3/           # Active model (v3 encoder, 60,883 sequences)
 │       ├── best_model.pt        # weights not tracked in git (*.pt in .gitignore)
-│       ├── training_history.csv
-│       └── *.png
+│       └── training_history.csv
 ├── results/
-│   ├── mouse_identity60/        # Final results (93% recall)
-│   └── bat/                     # Example application
+│   ├── METRICS_HISTORY.md       # Centralized recall/precision record
+│   ├── mouse_v2.2/              # Mouse validation runs
+│   ├── human_v2.2/              # Human validation runs
+│   ├── ferret_identity60/       # Ferret validation runs
+│   ├── pongo_pygmaeus/          # Pongo validation runs
+│   └── xenopus_laevis/          # Xenopus validation runs
 ├── scripts/                     # Pipeline scripts (01-09)
-├── utils/                       # Utility scripts
+├── utils/
+│   ├── explore_vgenes.py        # Data quality checks
+│   └── parse_imgt_display.py    # Parse IMGT protein display format to FASTA
 ├── src/                         # Core modules
-│   ├── features/                # Terminal encoding
+│   ├── features/                # Terminal encoding (v2/v3)
 │   └── models/                  # CNN architecture
 ├── README.md
+├── TECHNICAL_DOCUMENTATION.md
 ├── CHANGELOG.md
 ├── requirements.txt
 └── environment.yml
@@ -634,13 +649,16 @@ python scripts/06_extract_candidates.py \
 **Step 4 — Merge, classify and validate** as usual with scripts 07–08, using the
 combined candidates (original + `_missing.fasta`).
 
-**Results with second pass (v2.2.0):**
+**Results with second pass:**
 ```
-Species   Locus   Standard pass   With second pass   Gain
-─────────────────────────────────────────────────────────
-Human     TRAV       75.6%           100%*           +24%
-Mouse     TRBV       50.0%           95.5%           +45%
+Species   Locus   v3b3 std-pass   With second pass   Gain
+──────────────────────────────────────────────────────────
+Human     TRAV       88.9%            ~95%+          +6%+
+Mouse     TRBV       95.5%            95.5%           —
 ```
+Note: v3_bootstrap3 single-pass already recovers 88.9% human TRAV (vs 68.9% in v2.2).
+The two-pass protocol remains useful for families that consistently anchor in CDR2/FR3,
+but its relative benefit is smaller than in prior versions.
 
 ## 📊 Output Formats
 
@@ -994,11 +1012,11 @@ python utils/parse_imgt_display.py \
 
 If you use this pipeline in your research, please cite:
 ```bibtex
-@software{vgene_classifier_v2,
+@software{vgene_classifier_v3,
   author = {Luis Raña Cortizo and David N. Olivieri},
-  title = {V-Gene Classifier v2.0: Automated Discovery and Classification of Immunoglobulin and T-Cell Receptor V-Genes},
+  title = {V-Gene Classifier v3: Automated Discovery and Classification of Immunoglobulin and T-Cell Receptor V-Genes},
   year = {2026},
-  version = {2.1.0},
+  version = {3.0.0},
   url = {https://github.com/yourusername/py-vgene-classifier}
 }
 ```
