@@ -77,6 +77,12 @@ results/*/phylogenetic*/combined_sequences.fasta
 results/*/phylogenetic*/alignment.fasta
 results/*/validation*/blast_results.txt
 
+# Ignore all results CSVs, TXTs and validation dirs not yet tracked
+# (already-committed files are unaffected by these rules)
+results/**/*.csv
+results/**/*.txt
+results/**/validation_*/
+
 # Temporary BLAST databases
 *_db.*
 *.nhr
