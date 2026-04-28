@@ -435,8 +435,8 @@ python scripts/02_prepare_dataset.py \
 **Step 3: Train Model**
 ```bash
 python scripts/03_train_model.py \
-    --train-csv data/processed/train_multispecies_multiclass.csv \
-    --val-csv data/processed/val_multispecies_multiclass.csv \
+    --train-csv data/processed_v3/train_bootstrap3.csv \
+    --val-csv data/processed_v3/val_bootstrap3.csv \
     --output-dir models/my_model \
     --epochs 30 \
     --batch-size 64 \
@@ -680,16 +680,16 @@ candidate_2,AQSVTQ...,101,3,TRAV,0.9654,0.0012,0.0089,0.0045,0.9654,0.0200
 ### Validation Report
 ```
 Per-Locus Breakdown:
-───────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────
 Locus    Predictions  Unique Found  Total IMGT  Recall  Precision
-───────────────────────────────────────────────────────
-IGHV     ~13,200      322           341         94.4%   95.1%
-IGKV     ~1,100       97            100         97.0%   95.7%
-TRAV     ~1,100       101           109         92.7%   100.0%
-TRBV     ~316         21            22          95.5%   100.0%
-───────────────────────────────────────────────────────
-TOTAL    ~15,700      533           572         93.2%   95.4%
+───────────────────────────────────────────────────────────────────
+IGHV     ~14,742      325           341         95.3%   93.4%
+IGKV     ~1,852        99           100         99.0%   86.5%
+TRAV     ~730         106           109         97.2%   95.5%
+TRBV     ~37           21            22         95.5%  100.0%
+───────────────────────────────────────────────────────────────────
 ```
+(Example output: *Mus musculus* GRCm39, v3_bootstrap3)
 
 ## 🔬 Biological Interpretation
 

@@ -346,7 +346,7 @@ larger window before discarding).
 
 ---
 
-## v3_bootstrap2c — Final Validation Results
+## v3_bootstrap2c — Intermediate Validation Results
 
 Model trained on `data/processed_v3/train_bootstrap2.csv` (60,689 sequences:
 v2.2 + 507 bootstrapped + 48 Xenopus IMGT reference sequences).
@@ -386,6 +386,8 @@ divergent taxa entirely. For species with >200 Ma divergence from mammals
 | Pongo pygmaeus (v3bootstrap2) | 100.0% | 83.3% | 66.7% | 93.6% | 99.4% |
 | Mustela putorius furo (v3bootstrap2) | 92.9% | 92.5% | 90.4% | 85.0% | 100.0% |
 | Xenopus laevis (v3bootstrap2) | 71.1% | N/A | N/A | 16.7% | 99.0% |
+
+*(v3_bootstrap2 run, not canonical — see [METRICS_HISTORY.md](../results/METRICS_HISTORY.md))*
 
 ### Mouse model evolution
 
