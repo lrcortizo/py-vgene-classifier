@@ -203,9 +203,9 @@ def main():
     parser.add_argument("--encoder-version", choices=["v2", "v3"], default="v2",
                        help="Encoder version: v2=2000 dims (default), v3=2045 dims")
     parser.add_argument("--require-fr1", action=argparse.BooleanOptionalAction,
-                        default=None,
+                        default=False,
                         help="Filter sequences without FR1 pattern in first 30aa. "
-                             "Default: True for v3, False for v2.")
+                             "Default: False. Use --require-fr1 to enable explicitly.")
 
     args = parser.parse_args()
 
@@ -217,9 +217,7 @@ def main():
         encoder = TerminalRegionEncoder()
         input_size = 2000
 
-    # FR1 filter default: on for v3, off for v2 (backward compatibility)
-    require_fr1 = args.require_fr1 if args.require_fr1 is not None \
-                  else (args.encoder_version == "v3")
+    require_fr1 = args.require_fr1
 
     print("=" * 80)
     print("V-GENE PREDICTION - v2.1.0")
