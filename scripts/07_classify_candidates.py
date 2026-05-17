@@ -152,6 +152,7 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
                     'margin': 1.0,
                     'confidence_level': calculate_confidence_level(1.0, 1.0, _fr1_flags),
                     'motif_flags': _fr1_flags,
+                    'discard_reason': 'fr1_filter',
                     'prob_background': 1.0,
                     **{f'prob_{c}': 0.0 for c in CLASS_NAMES if c != 'background'},
                 })
@@ -204,6 +205,7 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
                 'margin': margin,
                 'confidence_level': calculate_confidence_level(float(max_prob), margin, flags),
                 'motif_flags': flags,
+                'discard_reason': None,  # filled in main() after threshold check
             }
 
             # Add individual class probabilities
@@ -300,18 +302,22 @@ def main():
     print(f"   ✅ Predictions complete: {len(results):,} sequences")
     print()
 
-    # Separate V-genes from background
+    # Separate V-genes from background; assign discard_reason
     vgenes = []
     background = []
 
     for res in results:
-        if res['predicted_class'] == 0:  # Background
+        if res['discard_reason'] == 'fr1_filter':
             background.append(res)
-        else:  # V-gene (any locus)
-            if res['probability'] >= args.threshold:
-                vgenes.append(res)
-            else:
-                background.append(res)
+        elif res['predicted_class'] == 0:
+            res['discard_reason'] = 'background_model'
+            background.append(res)
+        elif res['probability'] >= args.threshold:
+            res['discard_reason'] = 'none'
+            vgenes.append(res)
+        else:
+            res['discard_reason'] = 'low_probability'
+            background.append(res)
 
     # Statistics
     print("=" * 80)
@@ -370,6 +376,22 @@ def main():
     else:
         print("\n⚠️  No V-genes predicted above threshold")
 
+    # Discarded candidates summary
+    n_total = len(results)
+    discard_counts = {'fr1_filter': 0, 'background_model': 0, 'low_probability': 0}
+    for res in background:
+        reason = res['discard_reason']
+        if reason in discard_counts:
+            discard_counts[reason] += 1
+    n_discarded = sum(discard_counts.values())
+    print("\n" + "-" * 80)
+    print("DISCARDED CANDIDATES:")
+    print("-" * 80)
+    print(f"  FR1 filter:       {discard_counts['fr1_filter']:6,} ({discard_counts['fr1_filter']/n_total*100:5.1f}%)")
+    print(f"  Background model: {discard_counts['background_model']:6,} ({discard_counts['background_model']/n_total*100:5.1f}%)")
+    print(f"  Low probability:  {discard_counts['low_probability']:6,} ({discard_counts['low_probability']/n_total*100:5.1f}%)")
+    print(f"  Total discarded:  {n_discarded:6,} ({n_discarded/n_total*100:5.1f}%)")
+
     # Save V-genes FASTA
     print()
     print("=" * 80)
@@ -395,35 +417,36 @@ def main():
     else:
         print("⚠️  No V-genes to save")
 
-    # Save all predictions to CSV
-    if vgene_records or args.save_all:
-        data = []
-        for res in (vgenes + background if args.save_all else vgenes):
-            row = {
-                'id': res['record'].id,
-                'sequence': str(res['record'].seq),
-                'length': len(res['record'].seq),
-                'predicted_class': res['predicted_class'],
-                'predicted_locus': res['predicted_locus'],
-                'probability': res['probability'],
-                'second_prob': res['second_prob'],
-                'margin': res['margin'],
-                'confidence_level': res['confidence_level'],
-            }
-            # Add individual motif flags (v3 only; None → absent columns)
-            if res['motif_flags'] is not None:
-                for flag_name in MOTIF_FLAG_NAMES:
-                    row[f'motif_{flag_name}'] = res['motif_flags'][flag_name]
-            # Add class probabilities
-            for class_name in CLASS_NAMES:
-                row[f'prob_{class_name}'] = res[f'prob_{class_name}']
+    # Save all candidates to CSV (always — discard_reason indicates fate of each)
+    data = []
+    for res in vgenes + background:
+        row = {
+            'id': res['record'].id,
+            'sequence': str(res['record'].seq),
+            'length': len(res['record'].seq),
+            'predicted_class': res['predicted_class'],
+            'predicted_locus': res['predicted_locus'],
+            'probability': res['probability'],
+            'second_prob': res['second_prob'],
+            'margin': res['margin'],
+            'confidence_level': res['confidence_level'],
+            'discard_reason': res['discard_reason'],
+        }
+        # Add individual motif flags (v3 only; None → absent columns)
+        if res['motif_flags'] is not None:
+            for flag_name in MOTIF_FLAG_NAMES:
+                row[f'motif_{flag_name}'] = res['motif_flags'][flag_name]
+        # Add class probabilities
+        for class_name in CLASS_NAMES:
+            row[f'prob_{class_name}'] = res[f'prob_{class_name}']
 
-            data.append(row)
+        data.append(row)
 
-        df = pd.DataFrame(data)
-        df = df.sort_values('probability', ascending=False)
-        df.to_csv(csv_output, index=False)
-        print(f"✅ All predictions CSV: {csv_output}")
+    os.makedirs(os.path.dirname(csv_output) or '.', exist_ok=True)
+    df = pd.DataFrame(data)
+    df = df.sort_values('probability', ascending=False)
+    df.to_csv(csv_output, index=False)
+    print(f"✅ Candidates CSV: {csv_output} ({len(df):,} rows, all candidates)")
 
     print()
     print("=" * 80)
