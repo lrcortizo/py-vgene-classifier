@@ -70,6 +70,9 @@ results/*/
 !results/human_multispecies_r2/
 !results/mouse_identity60/
 
+# Ablation and metrics documentation
+!results/ablation/
+
 # Within tracked directories: skip large intermediate files
 results/*/tblastn*.txt
 results/*/candidates*.fasta
