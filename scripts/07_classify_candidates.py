@@ -81,6 +81,15 @@ def has_fr1_pattern(sequence: str, window: int = 30) -> bool:
     return any(re.search(p, leader_window) for p in FR1_PATTERNS)
 
 
+def calculate_confidence_level(prob, margin):
+    if prob >= 0.99 and margin >= 0.95:
+        return "high"
+    elif prob >= 0.80 and margin >= 0.60:
+        return "medium"
+    else:
+        return "low"
+
+
 def load_model(model_path, num_classes, device, input_size=2000):
     """Load trained model with terminal encoding."""
     print(f"   Loading model architecture...")
@@ -126,6 +135,9 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
                     'predicted_class': 0,
                     'predicted_locus': 'background',
                     'probability': 1.0,
+                    'second_prob': 0.0,
+                    'margin': 1.0,
+                    'confidence_level': calculate_confidence_level(1.0, 1.0),
                     'prob_background': 1.0,
                     **{f'prob_{c}': 0.0 for c in CLASS_NAMES if c != 'background'},
                 })
@@ -157,13 +169,22 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
             predictions_np = predictions.cpu().numpy()
             max_probs_np = max_probs.cpu().numpy()
 
+            # Second-highest probability for margin calculation
+            sorted_probs_np = np.sort(probs_np, axis=1)[:, ::-1]
+            second_probs_np = sorted_probs_np[:, 1]
+
         # Store results
-        for rec, pred_class, max_prob, all_probs in zip(valid_records, predictions_np, max_probs_np, probs_np):
+        for rec, pred_class, max_prob, second_prob, all_probs in zip(
+                valid_records, predictions_np, max_probs_np, second_probs_np, probs_np):
+            margin = float(max_prob) - float(second_prob)
             result = {
                 'record': rec,
                 'predicted_class': int(pred_class),
                 'predicted_locus': CLASS_NAMES[pred_class],
                 'probability': float(max_prob),
+                'second_prob': float(second_prob),
+                'margin': margin,
+                'confidence_level': calculate_confidence_level(float(max_prob), margin),
             }
 
             # Add individual class probabilities
@@ -304,6 +325,20 @@ def main():
         print(f"  Mean:   {np.mean(probs):.4f}")
         print(f"  Median: {np.median(probs):.4f}")
 
+        # Confidence level breakdown
+        conf_counts = {'high': 0, 'medium': 0, 'low': 0}
+        for v in vgenes:
+            conf_counts[v['confidence_level']] += 1
+        total_vg = len(vgenes)
+        print("\n" + "-" * 80)
+        print("CONFIDENCE LEVELS (V-genes only):")
+        print("-" * 80)
+        for level in ['high', 'medium', 'low']:
+            cnt = conf_counts[level]
+            pct = cnt / total_vg * 100 if total_vg > 0 else 0
+            label = level.capitalize()
+            print(f"  {label+':':<8} {cnt:4d} ({pct:5.1f}%)")
+
         # Top predictions
         vgenes_sorted = sorted(vgenes, key=lambda x: x['probability'], reverse=True)
         print("\n" + "-" * 80)
@@ -350,6 +385,9 @@ def main():
                 'predicted_class': res['predicted_class'],
                 'predicted_locus': res['predicted_locus'],
                 'probability': res['probability'],
+                'second_prob': res['second_prob'],
+                'margin': res['margin'],
+                'confidence_level': res['confidence_level'],
             }
             # Add class probabilities
             for class_name in CLASS_NAMES:
