@@ -21,6 +21,9 @@ from collections import Counter
 AA_ALPHABET = 'ARNDCQEGHILKMFPSTWYV'  # Note: Olivieri's order
 AA_TO_IDX = {aa: i for i, aa in enumerate(AA_ALPHABET)}
 
+# Names of the 5 conserved V-gene motif flags (used by TerminalRegionEncoderV3)
+MOTIF_FLAG_NAMES = ['C23', 'W41', 'YYC', 'C104', 'WGXG']
+
 # ── AAindex1 physicochemical scales (used by TerminalRegionEncoderV3) ────────
 # All arrays follow AA_ALPHABET order: 'ARNDCQEGHILKMFPSTWYV'
 PHYSICOCHEMICAL = {
@@ -333,6 +336,22 @@ class TerminalRegionEncoderV3(TerminalRegionEncoder):
         return flags  # (5,)
 
     # ── Override encode ──────────────────────────────────────────────────────
+
+    def encode_with_flags(self, sequence: str):
+        """
+        Like encode(), but also returns the 5 motif flags as a named dict.
+
+        Returns:
+            encoding : np.ndarray of shape (2045,), dtype float32
+            flag_dict: dict mapping MOTIF_FLAG_NAMES → bool
+        """
+        encoding = self.encode(sequence)
+        raw_flags = self._motif_flags(sequence)
+        flag_dict = {
+            name: bool(raw_flags[i])
+            for i, name in enumerate(MOTIF_FLAG_NAMES)
+        }
+        return encoding, flag_dict
 
     def encode(self, sequence: str) -> np.ndarray:
         """

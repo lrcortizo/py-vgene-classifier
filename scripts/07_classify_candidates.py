@@ -31,7 +31,8 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.features.terminal_encoding import TerminalRegionEncoder, TerminalRegionEncoderV3
+from src.features.terminal_encoding import (TerminalRegionEncoder, TerminalRegionEncoderV3,
+                                             MOTIF_FLAG_NAMES)
 from src.models.cnn_terminal import CNN_TerminalEncoding
 
 # Class names
@@ -81,10 +82,21 @@ def has_fr1_pattern(sequence: str, window: int = 30) -> bool:
     return any(re.search(p, leader_window) for p in FR1_PATTERNS)
 
 
-def calculate_confidence_level(prob, margin):
-    if prob >= 0.99 and margin >= 0.95:
+def calculate_confidence_level(prob, margin, motif_flags=None):
+    if motif_flags is None:
+        # fallback sin flags (encoder v2)
+        if prob >= 0.99 and margin >= 0.95:
+            return "high"
+        elif prob >= 0.80 and margin >= 0.60:
+            return "medium"
+        else:
+            return "low"
+
+    n_motifs = sum(motif_flags.values())
+
+    if prob >= 0.99 and n_motifs >= 4:
         return "high"
-    elif prob >= 0.80 and margin >= 0.60:
+    elif prob >= 0.80 and n_motifs >= 2:
         return "medium"
     else:
         return "low"
@@ -107,7 +119,7 @@ def load_model(model_path, num_classes, device, input_size=2000):
 
 
 def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
-                      require_fr1=False):
+                      require_fr1=False, use_motif_flags=False):
     """Predict class for each sequence using terminal encoding."""
     if encoder is None:
         encoder = TerminalRegionEncoder()
@@ -130,6 +142,7 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
             # first 30aa are redirected to background without reaching the model.
             if require_fr1 and not has_fr1_pattern(str(rec.seq)):
                 fr1_filtered += 1
+                _fr1_flags = {n: False for n in MOTIF_FLAG_NAMES} if use_motif_flags else None
                 results.append({
                     'record': rec,
                     'predicted_class': 0,
@@ -137,15 +150,20 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
                     'probability': 1.0,
                     'second_prob': 0.0,
                     'margin': 1.0,
-                    'confidence_level': calculate_confidence_level(1.0, 1.0),
+                    'confidence_level': calculate_confidence_level(1.0, 1.0, _fr1_flags),
+                    'motif_flags': _fr1_flags,
                     'prob_background': 1.0,
                     **{f'prob_{c}': 0.0 for c in CLASS_NAMES if c != 'background'},
                 })
                 continue
             try:
-                encoding = encoder.encode(str(rec.seq))
+                if use_motif_flags:
+                    encoding, flags = encoder.encode_with_flags(str(rec.seq))
+                else:
+                    encoding = encoder.encode(str(rec.seq))
+                    flags = None
                 batch_encodings.append(encoding)
-                valid_records.append(rec)
+                valid_records.append((rec, flags))
             except Exception as e:
                 print(f"   Warning: Could not encode {rec.id}: {e}")
                 continue
@@ -174,7 +192,7 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
             second_probs_np = sorted_probs_np[:, 1]
 
         # Store results
-        for rec, pred_class, max_prob, second_prob, all_probs in zip(
+        for (rec, flags), pred_class, max_prob, second_prob, all_probs in zip(
                 valid_records, predictions_np, max_probs_np, second_probs_np, probs_np):
             margin = float(max_prob) - float(second_prob)
             result = {
@@ -184,7 +202,8 @@ def predict_sequences(sequences, model, device, batch_size=64, encoder=None,
                 'probability': float(max_prob),
                 'second_prob': float(second_prob),
                 'margin': margin,
-                'confidence_level': calculate_confidence_level(float(max_prob), margin),
+                'confidence_level': calculate_confidence_level(float(max_prob), margin, flags),
+                'motif_flags': flags,
             }
 
             # Add individual class probabilities
@@ -274,8 +293,10 @@ def main():
     # Predict
     print("🔮 PREDICTING")
     print("-" * 80)
+    use_motif_flags = (args.encoder_version == "v3")
     results = predict_sequences(candidates, model, device, args.batch_size,
-                                encoder=encoder, require_fr1=require_fr1)
+                                encoder=encoder, require_fr1=require_fr1,
+                                use_motif_flags=use_motif_flags)
     print(f"   ✅ Predictions complete: {len(results):,} sequences")
     print()
 
@@ -389,6 +410,10 @@ def main():
                 'margin': res['margin'],
                 'confidence_level': res['confidence_level'],
             }
+            # Add individual motif flags (v3 only; None → absent columns)
+            if res['motif_flags'] is not None:
+                for flag_name in MOTIF_FLAG_NAMES:
+                    row[f'motif_{flag_name}'] = res['motif_flags'][flag_name]
             # Add class probabilities
             for class_name in CLASS_NAMES:
                 row[f'prob_{class_name}'] = res[f'prob_{class_name}']
