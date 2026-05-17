@@ -1,6 +1,6 @@
 # Ablation Study — V-Gene Classifier
 
-Especies: Mus musculus (en training) y Pongo pygmaeus (fuera del training)
+Especies: Mus musculus (en training), Mustela putorius furo (en training) y Pongo pygmaeus (fuera del training)
 Candidatos: mismos ficheros para todos los modelos (comparación controlada)
 Métrica: Recall (R) = unique IMGT genes found / Total IMGT funcionales
          Precision (P) = predicciones correctas / total predicciones por locus
@@ -32,12 +32,28 @@ de Oncorhynchus mykiss (teleósteo), más representativos de la diversidad cross
 El modelo encuentra más candidatos TRAV pero con más ruido. El recall se mantiene estable
 (95.0%), lo que sugiere que los genes reales se recuperan pero aumentan los falsos positivos.
 
+## Mustela putorius furo (en training)
+
+| Versión | Cambios añadidos | IGHV R | IGHV P | IGKV R | IGKV P | TRAV R | TRAV P | TRBV R | TRBV P |
+|---------|-----------------|--------|--------|--------|--------|--------|--------|--------|--------|
+| v2_r3 (baseline) | — | 92.9% | 90.4% | 92.5% | 99.6% | 82.7% | 93.0% | 85.0% | 100.0% |
+| v3_multispecies | +RSS-CAC +Encoding V3 | 92.9% | 90.9% | 90.0% | 99.7% | 88.5% | 93.2% | 85.0% | 100.0% |
+| v3_bootstrap2 | +Bootstrap mamíferos+Xenopus | 92.9% | 87.2% | 92.5% | 99.8% | 90.4% | 94.7% | 85.0% | 100.0% |
+| v3_bootstrap3 | +Bootstrap teleósteos | 95.2% | 82.7% | 92.5% | 99.8% | 88.5% | 94.7% | 85.0% | 100.0% |
+
+⚠️ TRAV recall mejora progresivamente con el bootstrapping (+7.7pp en v3_bootstrap2),
+pero v3_bootstrap3 no mejora respecto a v3_bootstrap2 — los teleósteos no aportan
+para TRAV de hurón. IGHV sube +2.3pp en v3_bootstrap3 pero con caída de precisión
+(90.4% → 82.7%), indicando más falsos positivos.
+
 ## Conclusiones
 
 - RSS-CAC + Encoding V3: mejoran TRBV recall en ratón (+4.6pp) sin coste en Pongo
 - Bootstrap mamíferos+Xenopus: mejora IGHV ratón (+1.8pp) y TRAV Pongo (+2.5pp), 
   pero introduce ruido TRBV por divergencia de Xenopus
 - Bootstrap teleósteos: recupera precisión TRBV y añade +4.5pp TRAV en ratón
+- Bootstrap mamíferos+Xenopus: mayor impacto en TRAV hurón (+7.7pp)
+- Bootstrap teleósteos: aporta IGHV hurón (+2.3pp recall) pero reduce precisión
 - Generalización (Pongo): IGHV e IGKV mantienen 100% recall en todas las versiones —
   señal robusta de generalización cross-species en loci de inmunoglobulinas
 
