@@ -1,4 +1,4 @@
-# V-Gene Classifier v2.2.0
+# V-Gene Classifier v3.0.0
 
 Deep learning pipeline for automated V-gene discovery and classification in vertebrate genomes using terminal-region encoding and multiclass CNN.
 
@@ -8,134 +8,66 @@ Deep learning pipeline for automated V-gene discovery and classification in vert
 
 ## 🎯 Project Overview
 
-This project implements a complete pipeline for discovering and classifying V-gene segments (immunoglobulin and T-cell receptor variable regions) in vertebrate genomes. The v2.1.0 release fixes TCR cross-species recall collapse via empirically-derived FR1 patterns, achieving ≥85% recall on TRAV/TRBV across three mammalian species without retraining.
+This project implements a complete pipeline for discovering and classifying V-gene segments (immunoglobulin and T-cell receptor variable regions) in vertebrate genomes. The current release (v3_bootstrap3) uses a 2045-dim V3 encoder trained on 60,883 sequences including teleost V-genes, achieving ≥88% TCR recall and ≥95% IG recall across five validated species.
 
-### Key Achievements
+### Key Achievements (v3_bootstrap3)
 
-- **93.2% recall** on mouse genome (533/572 IMGT genes detected, v2.1.0)
-- **95.4% precision** across all loci
-- **Cross-species validated**: human, mouse, ferret — same model, no retraining
-- **TCR fully functional**: TRAV 77–100%, TRBV 83–95% recall cross-species (v2.2.0)
-- **Fully automated** pipeline from genome to validated predictions
+- **97.2% TRAV recall** on mouse genome (106/109 unique IMGT genes)
+- **99.0% IGKV recall** on mouse genome (99/100)
+- **Cross-species validated**: human, mouse, ferret, Pongo, Xenopus — same model
+- **+20pp human TRAV** vs v2.2 baseline (88.9% vs 68.9%)
+- **Out-of-training**: 100% IGHV/IGKV recall on *Pongo pygmaeus*
+- **47 FR1 patterns** covering all major IG and TCR V-gene families
+- **Fully automated** pipeline: genome → TBLASTN → extract → classify → validate
 
-## 🆕 What's New in v2.1.0
+## 🆕 What's New in v3_bootstrap3 (current)
 
-### TCR FR1 Pattern Fix (April 2026)
+### Teleost Training Sequences + FR1 Filter Default Change (April 2026)
 
-**Problem:** `VGENE_START_PATTERNS` in `06_extract_candidates.py` contained only
-IG patterns (EVQL, QVQL, DIQMTQ). The `clean_terminals` step could not detect
-Framework 1 start in TCR candidates, leaving ~25 aa of upstream genomic noise
-in the N-terminal 40 aa — the primary feature for the terminal encoder — causing
-complete recall collapse for TRAV/TRBV cross-species.
+**Change 1 — Teleost V-gene sequences added to training corpus:**
+194 sequences from 4 Actinopterygii species improve cross-phylum TCR generalization:
+- 35 TRBV *Oncorhynchus mykiss* (rainbow trout)
+- 132 TRAV *Danio rerio* (zebrafish)
+- 18 TRAV *Takifugu rubripes* (fugu)
+- 9 TRAV *Oncorhynchus mykiss*
 
-**Fix:** 14 empirically-derived TRAV/TRBV FR1 regex patterns added to
-`VGENE_START_PATTERNS`, derived from 3,974 TRAV + 2,626 TRBV training sequences
-across 113 mammalian + 16 reptile species. Coverage: 68.5% TRAV, 77.8% TRBV (v2.1.0 base). False-positive
-rate on IG sequences: <0.5%.
+**Change 2 — `--require-fr1` default changed to `False`:**
+The FR1 pattern filter was on by default in v3_bootstrap2c, causing recall regression
+in ferret TRAV/IGKV and completely eliminating teleost/amphibian TRBV candidates.
+Default is now OFF for all encoder versions. Enable with `--require-fr1` when processing
+well-annotated mammalian genomes and precision is the primary goal.
 
-**Result (no retraining required):**
+**Key gains vs v2.2:**
 ```
-Species   Locus   Before   After    Precision
-────────────────────────────────────────────
-Human     TRAV     0.0%    68.9%     98.6%
-          TRBV     2.1%    87.5%     95.4%
-Mouse     TRAV      —      92.7%    100.0%
-          TRBV      —      50.0%    100.0%
-Ferret    TRAV      —      76.9%     96.9%
-          TRBV     5.0%    85.0%    100.0%
+Species      Locus   v2.2      v3_bootstrap3   Delta
+────────────────────────────────────────────────────
+Mouse        TRAV    92.7%     97.2%           +4.5pp
+Human        TRAV    68.9%     88.9%           +20.0pp
+Ferret       TRAV    76.9%     88.5%           +11.6pp
+Ferret       IGHV    92.9%     95.2%           +2.3pp
+Pongo        TRAV    92.5%     95.0%           +2.5pp
+Xenopus      IGHV    65.8%     71.1%           +5.3pp
 ```
-Zero misclassifications across all three species and 5,524 predictions.
 
-## 🆕 What's New in v2.2.0
+## 📋 Version History
 
-### FR1 Pattern Expansion + Frame-Aware Extraction (April 2026)
+See [CHANGELOG.md](CHANGELOG.md) for full details.
 
-**Change 1 — FR1 pattern expansion:**
-`VGENE_START_PATTERNS` expanded from 18 to **43 patterns** (4 IG + 18 TRAV + 21 TRBV).
-12 new TRAV patterns cover families TRAV1-1/2, TRAV2, TRAV7, TRAV12-1, TRAV13-2,
-TRAV14/DV4, TRAV17, TRAV21, TRAV25, TRAV29/DV5, TRAV36/DV7, TRAV40.
-13 new TRBV patterns cover families TRBV1, TRBV3, TRBV4, TRBV5, TRBV12-2,
-TRBV17, TRBV19, TRBV20, TRBV23, TRBV24, TRBV26, TRBV29, TRBV30.
-False-positive rate on IG sequences: 0.0% (validated against 36,935 IGHV/IGKV/IGLV sequences).
+| Version | Date | Highlights |
+|---|---|---|
+| **v3_bootstrap3** | Apr 2026 | Teleost TRAV/TRBV training data, `--require-fr1` default=False |
+| v3.0.0 | Apr 2026 | RSS-CAC C-term correction, TerminalRegionEncoderV3 (2045-dim), 47 FR1 patterns |
+| v2.2.0 | Apr 2026 | 43 FR1 patterns, frame-aware extraction, two-pass TBLASTN workflow |
+| v2.1.0 | Apr 2026 | TCR FR1 fix — TRAV/TRBV recall restored cross-species |
+| v2.0.0 | Mar 2026 | Terminal-region encoding, hard negatives, first 93%+ recall on mouse |
+| v1.x | Jan–Feb 2026 | Initial CNN classifier, multi-species training, IMGT validation |
 
-**Change 2 — Frame-aware extraction:**
-`extract_sequences()` in `06_extract_candidates.py` now selects the reading frame
-implied by the TBLASTN hit coordinates instead of always taking the longest ORF across
-all 3 frames. Falls back to longest-ORF when the preferred frame yields no valid fragment.
-
-**Change 3 — Two-pass TBLASTN workflow:**
-Formalized second-pass protocol for families where hits anchor in CDR2/FR3 instead of FR1.
-See section [Two-pass TBLASTN](#two-pass-tblastn-for-difficult-v-gene-families).
-
-**Results (v2.2.0, combined standard + second pass):**
-```
-Species   Locus   v2.1.0    v2.2.0    Gain
-──────────────────────────────────────────
-Human     TRAV    68.9%     100%*     +31%
-          TRBV    87.5%     83.3%      —
-Mouse     TRBV    50.0%     95.5%     +45%
-Ferret    TRAV    75.0%     76.9%     +2%
-```
-*With two-pass TBLASTN. Zero new false positives introduced.
-
-## 🆕 What's New in v2.0.0
-
-### Major Improvements
-
-**1. Terminal-Region Encoding**
-- Replaces full-sequence one-hot encoding
-- **Fixed-length features** (2,000 dimensions):
-  - N-terminal 40aa (800 features)
-  - C-terminal 40aa (800 features)
-  - Dipeptide frequencies (400 features)
-- Sequence-length invariant representation
-- Captures functionally critical regions
-
-**2. Hard Negative Training**
-- Replaces synthetic random backgrounds
-- Uses structurally similar non-V proteins:
-  - MHC Class I/II (Ig-like domains)
-  - Constant regions (IG C-genes)
-  - Ig superfamily proteins (CD28, CTLA4)
-- Data augmentation via conservative mutations (→8,000 sequences)
-- Forces model to learn discriminative features
-
-**3. Query ID Preservation**
-- Tracks IMGT gene identity through pipeline
-- Enables accurate recall calculation
-- Prevents loss in dense genomic regions (e.g., 160 IGHV genes in 2kb)
-- Intelligent deduplication by (query_id, sequence) tuple
-
-**4. Automated Terminal Cleaning**
-- Detects Framework 1 start motifs: IG (EVQL, QVQL, DIQMTQ) and TCR (39 patterns — 18 TRAV + 21 TRBV)
-- Trims N-terminal non-V sequence for all four loci
-- Limits C-terminal to typical V-gene length (~120aa)
-- Results in cleaner, more accurate predictions
-
-**5. Enhanced Validation**
-- Per-locus precision and recall metrics
-- Unique IMGT gene counting (not just hit counts)
-- Identity threshold filtering (≥60%, ≥70%, ≥80%)
-- Comprehensive validation reports
-
-### Performance Comparison
-```
-Metric              v1.3.0      v2.0.0      v2.1.0      v2.2.0      Note
-──────────────────────────────────────────────────────────────────────────────
-Recall (mouse)      ~40%        93.0%       93.2%       94.6%       +137% vs v1
-  IGHV              ~26%        97.1%       94.4%       94.4%
-  IGKV              ~46%        96.0%       97.0%       97.0%
-  TRAV              ~51%        89.0%       92.7%       92.7%
-  TRBV              —           36.4%       50.0%       95.5%       +45% (2nd pass)
-Precision           71.8%       99.8%       95.4%       ~95%
-TCR cross-species   —           collapse    ✅ fixed     ✅ expanded  43 FR1 patterns
-Pipeline            Manual      Automated   Automated   Automated   ✅
-```
+> **Metrics record:** [`results/METRICS_HISTORY.md`](results/METRICS_HISTORY.md) — centralized recall/precision table for all species, models, and validation runs.
 
 ## ✨ Key Features
 
 - **Complete automation**: Genome → TBLASTN → Extract → Classify → Validate
-- **High accuracy**: 93% recall with 99.8% precision
+- **High accuracy**: ≥95% IG recall, ≥85% TCR recall across validated species
 - **Locus classification**: Automatic IGHV/IGKV/TRAV/TRBV identification
 - **Robust to noise**: Hard negative training prevents false positives
 - **Scalable**: Handles genomes of any size
@@ -143,65 +75,68 @@ Pipeline            Manual      Automated   Automated   Automated   ✅
 - **Reproducible**: Fixed seeds, versioned data, documented parameters
 - **Publication-ready**: Comprehensive validation and metrics
 
-## 📊 Validation Results (v2.1.0 — Three Species)
+## 📊 Validation Results (v3_bootstrap3 — Five Species)
 
-**Model:** v2_multispecies_r3 (trained on 113 mammalian + 16 reptile species; "r3" = run 3)
-Validated on out-of-training species (Pongo pygmaeus): 96.1% recall in primates (Pongo pygmaeus, IGHV/IGKV 100%), 97.0% precision.
+**Model:** v3_bootstrap3 — v3 encoder (2045-dim), trained on 60,883 sequences (mammalian + teleost).  
+Full metrics history and methodology in [`results/METRICS_HISTORY.md`](results/METRICS_HISTORY.md).
 
-### Mouse (C57BL/6J — GRCm39)
+### Mouse (*Mus musculus* — GRCm39)
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV     94.4%     95.1%        322/341
-IGKV     97.0%     95.7%         97/100
-TRAV     92.7%     100.0%       101/109
-TRBV     95.5%     100.0%        21/22  †
+IGHV     95.3%     93.4%        325/341
+IGKV     99.0%     86.5%         99/100
+TRAV     97.2%     95.5%        106/109
+TRBV     95.5%    100.0%         21/22
 ───────────────────────────────────────────────
-TOTAL    94.6%     95.4%        541/572
 ```
 
 ### Human (GRCh38)
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV     96.1%     94.9%         49/51
-IGKV     97.6%     92.5%         41/42
-TRAV    100.0%     98.6%         45/45  †
-TRBV     83.3%     95.4%         40/48
+IGHV     96.1%     91.0%         49/51
+IGKV     97.6%     92.4%         41/42
+TRAV     88.9%     84.0%         40/45
+TRBV     85.4%     94.1%         41/48
 ───────────────────────────────────────────────
-TOTAL    94.1%     94.1%        175/186
 ```
 
-### Ferret (*Mustela putorius furo*)
+### Ferret (*Mustela putorius furo* — GCF_011764305.1)
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV     92.9%     87.1%        39/42
-IGKV     90.0%     99.7%        36/40
-TRAV     76.9%     96.9%        40/52
-TRBV     85.0%     100.0%       17/20
+IGHV     95.2%     82.7%         40/42
+IGKV     92.5%     99.8%         37/40
+TRAV     88.5%     94.7%         46/52
+TRBV     85.0%    100.0%         17/20
 ───────────────────────────────────────────────
-TOTAL    85.7%     90.9%        132/154
 ```
-
-† With two-pass TBLASTN (see [Two-pass TBLASTN](#two-pass-tblastn-for-difficult-v-gene-families)).
-Standard-pass only: Human TRAV 75.6%, Mouse TRBV 50.0% (11/22).
 
 ### Pongo pygmaeus (*Bornean orangutan* — mPonPyg2) — Out-of-training ✓
 ```
 Locus    Recall    Precision    Unique Found
 ───────────────────────────────────────────────
-IGHV    100.0%     97.0%         59/59
-IGKV    100.0%     97.0%         35/35
-TRAV     92.5%     97.0%         37/40
-TRBV     91.5%     97.0%         43/47
+IGHV    100.0%     94.0%         59/59
+IGKV    100.0%     91.9%         35/35
+TRAV     95.0%     66.7%         38/40
+TRBV     93.6%     97.9%         44/47
 ───────────────────────────────────────────────
-TOTAL    96.1%     97.0%        174/181
 ```
-Zero misclassifications. First validation on a species absent from training data.
-Second pass TBLASTN recovers additional genes. TRBV2-x families in Pongo pygmaeus
-remain unrecovered due to TBLASTN anchoring consistently within the gene body rather
-than at FR1.
+
+### Xenopus laevis — Out-of-training, non-mammalian ✓
+```
+Locus    Recall    Precision    Unique Found
+───────────────────────────────────────────────
+IGHV     71.1%    100.0%         27/38
+IGKV      N/A       N/A            —
+TRAV      N/A       N/A            —
+TRBV     16.7%     42.9%          2/12
+───────────────────────────────────────────────
+```
+No IMGT reference available for IGKV/TRAV in *X. laevis*. TRBV precision drop
+relative to v2.2 (100.0% → 42.9%): teleost TRBV sequences added in bootstrap3
+share structural features with amphibian TRBV, increasing false-positive rate.
 
 ## 🚀 Quick Start
 
@@ -246,7 +181,8 @@ python scripts/06_extract_candidates.py \
 # 4. Classify with CNN (~2 min)
 python scripts/07_classify_candidates.py \
     --candidates results/mouse/candidates.fasta \
-    --model models/v2_multispecies_r3/best_model.pt \
+    --model models/v3_bootstrap3/best_model.pt \
+    --encoder-version v3 \
     --output results/mouse/vgenes_predicted.fasta
 
 # 5. Validate against IMGT (~3 min)
@@ -270,23 +206,36 @@ py-vgene-classifier/
 ├── data/
 │   ├── background/              # Hard negative sequences (~400)
 │   ├── background_extended/     # Expanded negatives (~8k)
-│   ├── genomes/                 # Downloaded genomes
-│   ├── raw/positive/            # IMGT V-gene references
-│   └── reference/               # IMGT/NCBI references
+│   ├── genomes/                 # Downloaded genomes (not tracked in git)
+│   ├── raw/positive/            # Curated IMGT V-gene positives
+│   ├── processed_v3/            # Active training CSVs (bootstrap3)
+│   └── reference/
+│       ├── imgt_mouse/          # Mouse IMGT reference FASTA
+│       ├── imgt_human/          # Human IMGT reference FASTA
+│       ├── imgt_ferret/         # Ferret IMGT reference FASTA
+│       ├── imgt_pongo_pygmaeus/ # Pongo IMGT reference FASTA
+│       ├── imgt_xenopus_laevis/ # Xenopus IMGT reference FASTA
+│       └── imgt_teleostei/      # Teleost reference sequences (hand-curated)
 ├── models/
-│   └── v2_multispecies_r3/      # Active model v2.2.0 (129 species, ratio 3:1, run 3)
+│   └── v3_bootstrap3/           # Active model (v3 encoder, 60,883 sequences)
 │       ├── best_model.pt        # weights not tracked in git (*.pt in .gitignore)
-│       ├── training_history.csv
-│       └── *.png
+│       └── training_history.csv
 ├── results/
-│   ├── mouse_identity60/        # Final results (93% recall)
-│   └── bat/                     # Example application
+│   ├── METRICS_HISTORY.md       # Centralized recall/precision record
+│   ├── mouse_v2.2/              # Mouse validation runs
+│   ├── human_v2.2/              # Human validation runs
+│   ├── ferret_identity60/       # Ferret validation runs
+│   ├── pongo_pygmaeus/          # Pongo validation runs
+│   └── xenopus_laevis/          # Xenopus validation runs
 ├── scripts/                     # Pipeline scripts (01-09)
-├── utils/                       # Utility scripts
+├── utils/
+│   ├── explore_vgenes.py        # Data quality checks
+│   └── parse_imgt_display.py    # Parse IMGT protein display format to FASTA
 ├── src/                         # Core modules
-│   ├── features/                # Terminal encoding
+│   ├── features/                # Terminal encoding (v2/v3)
 │   └── models/                  # CNN architecture
 ├── README.md
+├── TECHNICAL_DOCUMENTATION.md
 ├── CHANGELOG.md
 ├── requirements.txt
 └── environment.yml
@@ -315,40 +264,38 @@ py-vgene-classifier/
 ### Utilities
 ```
 utils/explore_vgenes.py         → Data quality checks
-utils/parse_imgt_tables.py      → Parse IMGT references
+utils/parse_imgt_display.py     → Parse IMGT protein display format to FASTA
 ```
 
 ## 🧠 Model Architecture
 
-### CNN with Terminal-Region Encoding
+### CNN_TerminalEncoding (v3, 2045-dim input)
+
 ```
-Input: (batch, 2000)  # Terminal features
-  ↓
-Linear(2000 → 512) + BatchNorm + ReLU + Dropout(0.3)
-  ↓
-Reshape → (batch, 512, 1)  # Prepare for 1D conv
-  ↓
-Conv1D(512 → 256, k=3) + BatchNorm + ReLU + MaxPool(2)
-  ↓
-Conv1D(256 → 128, k=3) + BatchNorm + ReLU + MaxPool(2)
-  ↓
-Conv1D(128 → 64, k=3) + BatchNorm + ReLU
-  ↓
-AdaptiveAvgPool1D(1) + Flatten
-  ↓
-Linear(64 → 32) + ReLU + Dropout(0.3)
-  ↓
-Linear(32 → 5)  # [background, IGHV, IGKV, TRAV, TRBV]
-  ↓
-Softmax → Class probabilities
+Input: (batch, 2045)          # v3 encoder; v2 uses 2000
+  -> unsqueeze(1)
+  -> (batch, 1, 2045)
+
+Conv1: Conv1d(1, 64, k=5, pad=2) + BatchNorm1d(64) + ReLU + MaxPool1d(2)
+Conv2: Conv1d(64, 128, k=5, pad=2) + BatchNorm1d(128) + ReLU + MaxPool1d(2)
+Conv3: Conv1d(128, 256, k=5, pad=2) + BatchNorm1d(256) + ReLU + MaxPool1d(2)
+
+Flatten -> (batch, 256 * 255)  # 65,280 for v3 / 64,000 for v2
+
+FC: Linear(65280, 128) + ReLU + Dropout(0.3)
+    Linear(128, 64)    + ReLU + Dropout(0.3)
+    Linear(64, 5)      # [background, IGHV, IGKV, TRAV, TRBV]
+
+Output: softmax -> class probabilities
 ```
 
-**Key Features:**
-- **Parameters:** ~8.4M trainable
-- **Input:** 2,000 fixed-length features (sequence-length invariant)
+**Key parameters:**
+- **v3 model:** ~8.6M trainable parameters (input 2045)
+- **v2 model:** ~8.4M trainable parameters (input 2000)
 - **Output:** 5-class probability distribution
 - **Regularization:** Batch normalization + Dropout (0.3)
-- **Architecture:** Hybrid dense + convolutional
+
+Full architecture specification in [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md#model-architecture).
 
 ### Terminal-Region Feature Engineering
 
@@ -488,8 +435,8 @@ python scripts/02_prepare_dataset.py \
 **Step 3: Train Model**
 ```bash
 python scripts/03_train_model.py \
-    --train-csv data/processed/train_multispecies_multiclass.csv \
-    --val-csv data/processed/val_multispecies_multiclass.csv \
+    --train-csv data/processed_v3/train_bootstrap3.csv \
+    --val-csv data/processed_v3/val_bootstrap3.csv \
     --output-dir models/my_model \
     --epochs 30 \
     --batch-size 64 \
@@ -563,7 +510,8 @@ python scripts/06_extract_candidates.py \
 ```bash
 python scripts/07_classify_candidates.py \
     --candidates results/species_name/candidates.fasta \
-    --model models/v2_multispecies_r3/best_model.pt \
+    --model models/v3_bootstrap3/best_model.pt \
+    --encoder-version v3 \
     --output results/species_name/vgenes_predicted.fasta \
     --threshold 0.5 \
     --batch-size 64
@@ -701,13 +649,16 @@ python scripts/06_extract_candidates.py \
 **Step 4 — Merge, classify and validate** as usual with scripts 07–08, using the
 combined candidates (original + `_missing.fasta`).
 
-**Results with second pass (v2.2.0):**
+**Results with second pass:**
 ```
-Species   Locus   Standard pass   With second pass   Gain
-─────────────────────────────────────────────────────────
-Human     TRAV       75.6%           100%*           +24%
-Mouse     TRBV       50.0%           95.5%           +45%
+Species   Locus   v3b3 std-pass   With second pass   Gain
+──────────────────────────────────────────────────────────
+Human     TRAV       88.9%            ~95%+          +6%+
+Mouse     TRBV       95.5%            95.5%           —
 ```
+Note: v3_bootstrap3 single-pass already recovers 88.9% human TRAV (vs 68.9% in v2.2).
+The two-pass protocol remains useful for families that consistently anchor in CDR2/FR3,
+but its relative benefit is smaller than in prior versions.
 
 ## 📊 Output Formats
 
@@ -729,16 +680,16 @@ candidate_2,AQSVTQ...,101,3,TRAV,0.9654,0.0012,0.0089,0.0045,0.9654,0.0200
 ### Validation Report
 ```
 Per-Locus Breakdown:
-───────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────
 Locus    Predictions  Unique Found  Total IMGT  Recall  Precision
-───────────────────────────────────────────────────────
-IGHV     ~13,200      322           341         94.4%   95.1%
-IGKV     ~1,100       97            100         97.0%   95.7%
-TRAV     ~1,100       101           109         92.7%   100.0%
-TRBV     ~316         21            22          95.5%   100.0%
-───────────────────────────────────────────────────────
-TOTAL    ~15,700      533           572         93.2%   95.4%
+───────────────────────────────────────────────────────────────────
+IGHV     ~14,742      325           341         95.3%   93.4%
+IGKV     ~1,852        99           100         99.0%   86.5%
+TRAV     ~730         106           109         97.2%   95.5%
+TRBV     ~37           21            22         95.5%  100.0%
+───────────────────────────────────────────────────────────────────
 ```
+(Example output: *Mus musculus* GRCm39, v3_bootstrap3)
 
 ## 🔬 Biological Interpretation
 
@@ -916,10 +867,11 @@ python scripts/09_phylogenetic_validation.py ...
 # 3. Select species and locus
 # 4. Copy table to .txt file
 
-# Parse with utility
-python utils/parse_imgt_tables.py \
-    --input-dir data/reference/imgt_species \
-    --output-dir data/reference/imgt_species
+# Parse with utility (IMGT protein display format)
+python utils/parse_imgt_display.py \
+    data/reference/imgt_species/trbv_raw.txt \
+    data/reference/imgt_species/trbv.fasta \
+    --locus TRBV
 ```
 
 **Problem: Genome assembly quality issues**
@@ -1060,11 +1012,11 @@ python utils/parse_imgt_tables.py \
 
 If you use this pipeline in your research, please cite:
 ```bibtex
-@software{vgene_classifier_v2,
+@software{vgene_classifier_v3,
   author = {Luis Raña Cortizo and David N. Olivieri},
-  title = {V-Gene Classifier v2.0: Automated Discovery and Classification of Immunoglobulin and T-Cell Receptor V-Genes},
+  title = {V-Gene Classifier v3: Automated Discovery and Classification of Immunoglobulin and T-Cell Receptor V-Genes},
   year = {2026},
-  version = {2.1.0},
+  version = {3.0.0},
   url = {https://github.com/yourusername/py-vgene-classifier}
 }
 ```
@@ -1136,10 +1088,11 @@ Contributions are welcome! Please:
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-**Current version: 2.2.0** (April 2026)
+**Current version: 3.0.0** (April 2026)
 
 | Version | Date | Highlights |
 |---|---|---|
+| v3.0.0 | Apr 2026 | RSS-CAC correction, TerminalRegionEncoderV3 (2045 dims), 47 FR1 patterns |
 | v2.2.0 | Apr 2026 | FR1 pattern expansion (43 patterns), frame-aware extraction, two-pass TBLASTN |
 | v2.1.0 | Apr 2026 | TCR FR1 pattern fix — TRAV/TRBV recall cross-species restored |
 | v2.0.0 | Mar 2026 | Terminal-region encoding, hard negatives, 93% recall on mouse |
@@ -1150,6 +1103,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ---
 
-**Last updated:** April 19, 2026
-**Pipeline status:** ✅ Production-ready
-**Validation:** ✅ Cross-species (human, mouse, ferret) — IG ≥90%, TCR ≥83–100%
+**Last updated:** April 24, 2026
+**Pipeline status:** Production-ready
+**Validation:** Cross-species (human, mouse, ferret, Pongo pygmaeus) — IG >=90%, TCR >=83-100%

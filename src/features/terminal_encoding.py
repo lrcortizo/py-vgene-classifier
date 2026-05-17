@@ -11,6 +11,7 @@ Author: Luis Rana Cortizo (implementing Olivieri's method)
 Date: 2026-02-06
 """
 
+import re
 import numpy as np
 from typing import List, Dict
 from collections import Counter
@@ -19,6 +20,40 @@ from collections import Counter
 # Standard amino acid alphabet (same as Olivieri)
 AA_ALPHABET = 'ARNDCQEGHILKMFPSTWYV'  # Note: Olivieri's order
 AA_TO_IDX = {aa: i for i, aa in enumerate(AA_ALPHABET)}
+
+# Names of the 5 conserved V-gene motif flags (used by TerminalRegionEncoderV3)
+MOTIF_FLAG_NAMES = ['C23', 'W41', 'YYC', 'C104', 'WGXG']
+
+# ── AAindex1 physicochemical scales (used by TerminalRegionEncoderV3) ────────
+# All arrays follow AA_ALPHABET order: 'ARNDCQEGHILKMFPSTWYV'
+PHYSICOCHEMICAL = {
+    'hydrophobicity': np.array([          # Kyte-Doolittle 1982
+         1.8, -4.5, -3.5, -3.5,  2.5,
+        -3.5, -3.5, -0.4, -3.2,  4.5,
+         3.8, -3.9,  1.9,  2.8, -1.6,
+        -0.8, -0.7, -0.9, -1.3,  4.2], dtype=np.float32),
+    'volume': np.array([                  # Pontius 1996 (Å³)
+        67.0, 148.0,  96.0,  91.0,  86.0,
+       114.0, 109.0,  48.0, 118.0, 124.0,
+       124.0, 135.0, 124.0, 135.0,  90.0,
+        73.0,  93.0, 163.0, 141.0, 105.0], dtype=np.float32),
+    'charge': np.array([                  # Net charge at pH 7 (approximate)
+         0.0,  1.0,  0.0, -1.0,  0.0,
+         0.0, -1.0,  0.0,  0.0,  0.0,
+         0.0,  1.0,  0.0,  0.0,  0.0,
+         0.0,  0.0,  0.0,  0.0,  0.0], dtype=np.float32),
+    'flexibility': np.array([             # Vihinen 1994 (normalized B-factor)
+        0.357, 0.529, 0.463, 0.511, 0.346,
+        0.493, 0.497, 0.544, 0.323, 0.462,
+        0.365, 0.466, 0.295, 0.314, 0.509,
+        0.507, 0.444, 0.305, 0.420, 0.386], dtype=np.float32),
+    'polarity': np.array([                # Zimmerman 1968
+         0.00, 52.00,  3.38, 49.70,  1.48,
+         3.53, 49.90,  0.00, 51.60,  0.13,
+         0.13, 49.50,  1.43,  0.35,  1.58,
+         1.67,  1.66,  2.10,  1.61,  0.13], dtype=np.float32),
+}
+_PROP_NAMES = list(PHYSICOCHEMICAL.keys())  # fixed iteration order
 
 
 class TerminalRegionEncoder:
@@ -211,6 +246,132 @@ def compare_encodings(sequence: str):
     print()
 
 
+class TerminalRegionEncoderV3(TerminalRegionEncoder):
+    """
+    V3 encoding: extends TerminalRegionEncoder with 45 additional features.
+
+    Feature vector layout (2045 dims):
+      [0:800]     One-hot N-terminal 40 aa          (from parent)
+      [800:1600]  One-hot C-terminal 40 aa          (from parent)
+      [1600:2000] Dipeptide counts (full sequence)  (from parent)
+      [2000:2020] AA frequency histogram            (NEW — 20 dims)
+      [2020:2040] Physicochemical properties        (NEW — 20 dims)
+      [2040:2045] Conserved motif flags             (NEW —  5 dims)
+
+    Physicochemical block (20 dims):
+      5 properties x (mean, std) x (N-term 40aa, C-term 40aa)
+      Properties: hydrophobicity, volume, charge, flexibility, polarity
+
+    Conserved motif flags (5 dims, all binary):
+      0: first C in sequence[:30]             (C23 proxy, FR1)
+      1: W in sequence[35:45]                (W41 proxy, FR2)
+      2: 'YYC' in sequence[-25:]             (FR3 conserved triad)
+      3: C in sequence[-20:]                 (C104 proxy, FR3)
+      4: re.search(r'WG.G', sequence[-25:])  (WGXG motif, FR3-J junction)
+
+    Requires retraining: CNN input_size must be updated from 2000 to 2045.
+    Original TerminalRegionEncoder (2000 dims) is unchanged.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.n_features = 2045
+
+    # ── New feature methods ──────────────────────────────────────────────────
+
+    def _aa_frequency(self, sequence: str) -> np.ndarray:
+        """Normalized frequency of each of 20 standard AA over full sequence."""
+        total = len(sequence) or 1
+        counts = Counter(sequence)
+        freq = np.array(
+            [counts.get(aa, 0) / total for aa in AA_ALPHABET],
+            dtype=np.float32
+        )
+        return freq  # (20,)
+
+    def _physicochemical(self, sequence: str) -> np.ndarray:
+        """
+        For each of 5 properties: (mean, std) computed separately on
+        N-terminal 40 aa and C-terminal 40 aa.
+        5 props x 2 stats x 2 regions = 20 dims.
+        """
+        n_term = sequence[:self.n_terminal]
+        c_term = sequence[-self.c_terminal:]
+        result = []
+        for prop_name in _PROP_NAMES:
+            scale = PHYSICOCHEMICAL[prop_name]
+            for region in (n_term, c_term):
+                indices = [AA_TO_IDX[aa] for aa in region if aa in AA_TO_IDX]
+                if indices:
+                    vals = scale[np.array(indices)]
+                    result.append(float(vals.mean()))
+                    result.append(float(vals.std()))
+                else:
+                    result.extend([0.0, 0.0])
+        return np.array(result, dtype=np.float32)  # (20,)
+
+    def _motif_flags(self, sequence: str) -> np.ndarray:
+        """
+        5 binary flags for structurally conserved V-gene positions/motifs.
+        Uses relative search windows instead of fixed IMGT positions —
+        robust to FR1 length variation across species.
+        """
+        flags = np.zeros(5, dtype=np.float32)
+
+        # 0: C23 proxy — first Cys in N-terminal 30 aa (FR1)
+        flags[0] = 1.0 if 'C' in sequence[:30] else 0.0
+
+        # 1: W41 proxy — Trp anywhere in positions 35-45 (FR2 entry)
+        flags[1] = 1.0 if 'W' in sequence[35:45] else 0.0
+
+        # 2: YYC motif — conserved triad in C-terminal 25 aa (FR3)
+        flags[2] = 1.0 if 'YYC' in sequence[-25:] else 0.0
+
+        # 3: C104 proxy — any Cys in last 20 aa (FR3)
+        flags[3] = 1.0 if 'C' in sequence[-20:] else 0.0
+
+        # 4: WGXG motif — FR3-J junction signature
+        flags[4] = 1.0 if re.search(r'WG.G', sequence[-25:]) else 0.0
+
+        return flags  # (5,)
+
+    # ── Override encode ──────────────────────────────────────────────────────
+
+    def encode_with_flags(self, sequence: str):
+        """
+        Like encode(), but also returns the 5 motif flags as a named dict.
+
+        Returns:
+            encoding : np.ndarray of shape (2045,), dtype float32
+            flag_dict: dict mapping MOTIF_FLAG_NAMES → bool
+        """
+        encoding = self.encode(sequence)
+        raw_flags = self._motif_flags(sequence)
+        flag_dict = {
+            name: bool(raw_flags[i])
+            for i, name in enumerate(MOTIF_FLAG_NAMES)
+        }
+        return encoding, flag_dict
+
+    def encode(self, sequence: str) -> np.ndarray:
+        """
+        Encode a single sequence using V3 method.
+
+        Returns:
+            np.ndarray of shape (2045,), dtype float32
+        """
+        onehot  = self._onehot_extremes(sequence)   # (1600,) from parent
+        dipep   = self._dipeptide_counts(sequence)  # (400,)  from parent
+        aa_freq = self._aa_frequency(sequence)      # (20,)   NEW
+        physico = self._physicochemical(sequence)   # (20,)   NEW
+        motifs  = self._motif_flags(sequence)       # (5,)    NEW
+
+        encoding = np.concatenate([onehot, dipep, aa_freq, physico, motifs])
+        assert encoding.shape == (2045,), \
+            f"V3 encoder: expected (2045,), got {encoding.shape}"
+        return encoding.astype(np.float32)
+
+
 # Utility function to get encoder by name
 def get_olivieri_encoder(normalize_dipeptides: bool = False, 
                          l2_normalize: bool = False) -> TerminalRegionEncoder:
@@ -260,10 +421,29 @@ if __name__ == '__main__':
         print(f"Sequence {i+1} (length={len(seq)}): encoding shape = {enc.shape}")
     
     print()
-    print("✅ All sequences encoded to fixed-length vector (2000,)")
+    print("OK: All sequences encoded to fixed-length vector (2000,)")
     print()
     
     # Batch encoding test
     batch_enc = encoder.encode_batch(sequences)
     print(f"Batch encoding shape: {batch_enc.shape}")
     print(f"Expected: ({len(sequences)}, 2000)")
+
+    print()
+    print("=" * 80)
+    print("TESTING V3 ENCODER")
+    print("=" * 80)
+
+    enc_v3 = TerminalRegionEncoderV3()
+    feat_v3 = enc_v3.encode(test_seq)
+
+    print(f"V3 encoding shape:             {feat_v3.shape}   (expected: (2045,))")
+    print(f"  [0:1600]    one-hot:         sum={feat_v3[:1600].sum():.0f}")
+    print(f"  [1600:2000] dipeptides:      sum={feat_v3[1600:2000].sum():.0f}")
+    print(f"  [2000:2020] aa_freq:         sum={feat_v3[2000:2020].sum():.4f}  (should be ~1.0)")
+    print(f"  [2020:2040] physicochemical: {feat_v3[2020:2040].round(3)}")
+    print(f"  [2040:2045] motif flags:     {feat_v3[2040:2045]}")
+    assert feat_v3.shape == (2045,), f"FAIL: shape={feat_v3.shape}"
+    assert feat_v3.dtype == np.float32, f"FAIL: dtype={feat_v3.dtype}"
+    print()
+    print("OK: TerminalRegionEncoderV3 passed all checks")

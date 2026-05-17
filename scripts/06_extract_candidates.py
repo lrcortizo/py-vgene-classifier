@@ -49,6 +49,8 @@ VGENE_START_PATTERNS = [
     # ── IGHV ────────────────────────────────────────────────────────────────
     r'[QE]VQ[LV]',              # EVQL, QVQL
     r'QVTL',                    # IGHV VH2 family (primates)
+    r'QAYL',                    # IGHV VH4-like family (mouse IGHV1-12, IGHV1-49)
+    r'QREL',                    # IGHV VH4-like family (mouse IGHV1-49)
     # ── IGKV / IGLV ─────────────────────────────────────────────────────────
     r'D[ILV][VKQ][MLV]TQ',     # DIVMTQ, DIKMTQ, DIQMTQ
     r'Q[AS]VL[TV]Q',            # QSVLTQ, QAVLTQ
@@ -328,6 +330,7 @@ def extract_sequences(
     cleaned_count = 0
     n_trimmed_total = 0
     c_trimmed_total = 0
+    rss_corrected_count = 0
 
     for idx, (query_id, contig_id, start, end, strand) in enumerate(regions):
         if contig_id not in genome:
@@ -356,6 +359,7 @@ def extract_sequences(
         # regions near chromosome boundaries get the correct frame too.
         best_protein = None
         best_length = 0
+        best_frame_start_in_dna = None  # DNA offset where best_protein fragment begins
 
         if strand == '+':
             hit_pos_in_dna = (start - 1) - extended_start  # 0-based in dna_seq
@@ -376,6 +380,7 @@ def extract_sequences(
                 if cumulative <= hit_aa_in_frame < frag_end and len(fragment) >= 70:
                     best_protein = fragment
                     best_length = len(fragment)
+                    best_frame_start_in_dna = preferred_frame + cumulative * 3
                     break
                 cumulative = frag_end + 1  # +1 accounts for the stop codon
         except Exception:
@@ -388,14 +393,36 @@ def extract_sequences(
                     protein_seq = dna_seq[frame:].translate(to_stop=False)
                     protein_str = str(protein_seq).rstrip('*')
                     fragments = protein_str.split('*')
+                    cumulative_fb = 0
                     for fragment in fragments:
                         if len(fragment) >= 70 and len(fragment) > best_length:
                             best_length = len(fragment)
                             best_protein = fragment
+                            best_frame_start_in_dna = frame + cumulative_fb * 3
+                        cumulative_fb += len(fragment) + 1
                 except Exception:
                     continue
 
         if best_protein:
+            # ── RSS-CAC C-terminal boundary correction ────────────────────────
+            # Search for RSS heptamer (CAC) within ±15 nt of the predicted
+            # protein C-terminus.  If found closer to the ORF start than the
+            # current end, truncate best_protein to the exact exon boundary.
+            # Conservative: if CAC is absent, behaviour is unchanged.
+            # Ref: Olivieri 2019 — CAC conserved in all jawed vertebrates.
+            if best_frame_start_in_dna is not None:
+                protein_end_in_dna = best_frame_start_in_dna + len(best_protein) * 3
+                search_start = max(0, protein_end_in_dna - 15)
+                window = str(dna_seq[search_start : protein_end_in_dna + 15])
+                cac_offset = window.find('CAC')
+                if cac_offset != -1:
+                    cac_pos_in_dna = search_start + cac_offset
+                    corrected_len = (cac_pos_in_dna - best_frame_start_in_dna) // 3
+                    if 70 <= corrected_len < len(best_protein):
+                        best_protein = best_protein[:corrected_len]
+                        rss_corrected_count += 1
+            # ─────────────────────────────────────────────────────────────────
+
             original_length = len(best_protein)
 
             # Clean terminals
@@ -436,6 +463,8 @@ def extract_sequences(
         print(f"      Sequences cleaned: {cleaned_count}/{len(candidates)} ({cleaned_count/len(candidates)*100:.1f}%)")
         print(f"      Avg N-terminal trimmed: {n_trimmed_total/cleaned_count:.1f} aa")
         print(f"      Avg C-terminal trimmed: {c_trimmed_total/cleaned_count:.1f} aa")
+    if rss_corrected_count > 0:
+        print(f"      RSS-CAC corrected:   {rss_corrected_count}")
 
     return candidates
 

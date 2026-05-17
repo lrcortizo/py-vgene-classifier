@@ -30,6 +30,10 @@ data/genomes/
 data/reference/imgt_*/
 data/reference/ncbi_*/
 
+# EXCEPTIONS: curated teleost reference sequences (small, hand-curated .txt files)
+!data/reference/imgt_teleostei/
+!data/reference/imgt_teleostei/*.txt
+
 # FASTA/FASTQ files (general exclusion)
 *.fasta
 *.fastq
@@ -41,6 +45,7 @@ data/reference/ncbi_*/
 !data/raw/positive/*.fasta
 !data/background/*.fasta
 !data/background_extended/*.fasta
+!data/reference/imgt_teleostei/*.fasta
 
 # ───────────────────────────────────────────────────────────────
 # Trained models
@@ -65,12 +70,21 @@ results/*/
 !results/human_multispecies_r2/
 !results/mouse_identity60/
 
+# Ablation and metrics documentation
+!results/ablation/
+
 # Within tracked directories: skip large intermediate files
 results/*/tblastn*.txt
 results/*/candidates*.fasta
 results/*/phylogenetic*/combined_sequences.fasta
 results/*/phylogenetic*/alignment.fasta
 results/*/validation*/blast_results.txt
+
+# Ignore all results CSVs, TXTs and validation dirs not yet tracked
+# (already-committed files are unaffected by these rules)
+results/**/*.csv
+results/**/*.txt
+results/**/validation_*/
 
 # Temporary BLAST databases
 *_db.*
@@ -154,4 +168,7 @@ data/raw/positive_v2.2/
 models/*/confusion_matrix.png
 models/*/training_history.csv
 models/*/training_history.png
+
+# EXCEPTION: track v3_bootstrap3 training history (lightweight run record)
+!models/v3_bootstrap3/training_history.csv
 

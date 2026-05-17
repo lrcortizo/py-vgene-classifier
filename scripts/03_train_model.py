@@ -46,7 +46,7 @@ from tqdm import tqdm
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import terminal encoding and model from src
-from src.features.terminal_encoding import TerminalRegionEncoder
+from src.features.terminal_encoding import TerminalRegionEncoder, TerminalRegionEncoderV3
 from src.models.cnn_terminal import CNN_TerminalEncoding
 
 # Class names
@@ -56,9 +56,9 @@ CLASS_NAMES = ['background', 'IGHV', 'IGKV', 'TRAV', 'TRBV']
 class VGeneDataset(Dataset):
     """Dataset using terminal-region encoding."""
 
-    def __init__(self, csv_file: Path):
+    def __init__(self, csv_file: Path, encoder=None):
         self.data = pd.read_csv(csv_file)
-        self.encoder = TerminalRegionEncoder()
+        self.encoder = encoder if encoder is not None else TerminalRegionEncoder()
 
         self.sequences = self.data['sequence'].tolist()
         self.labels = self.data['label'].tolist()
@@ -70,7 +70,7 @@ class VGeneDataset(Dataset):
         seq = self.sequences[idx]
         label = self.labels[idx]
 
-        # Encode with terminal-region method (returns 2000 features)
+        # Encode with configured encoder (v2: 2000 dims, v3: 2045 dims)
         encoding = self.encoder.encode(seq)
 
         return torch.FloatTensor(encoding), torch.LongTensor([label])[0]
@@ -218,8 +218,18 @@ def main():
                        help='Learning rate (default: 0.001)')
     parser.add_argument('--seed', type=int, default=42,
                        help='Random seed (default: 42)')
+    parser.add_argument('--encoder-version', choices=['v2', 'v3'], default='v2',
+                       help='Encoder version: v2=2000 dims (default), v3=2045 dims')
 
     args = parser.parse_args()
+
+    # Select encoder and input_size
+    if args.encoder_version == 'v3':
+        encoder = TerminalRegionEncoderV3()
+        input_size = 2045
+    else:
+        encoder = TerminalRegionEncoder()
+        input_size = 2000
 
     # Set seeds
     torch.manual_seed(args.seed)
@@ -234,7 +244,7 @@ def main():
     print("=" * 80)
     print("V-GENE CLASSIFIER TRAINING - v2.0.0")
     print("=" * 80)
-    print(f"Encoding: Terminal-region (N/C-term + dipeptides)")
+    print(f"Encoding: Terminal-region {args.encoder_version.upper()} ({input_size} dims)")
     print(f"Architecture: 1D CNN")
     print(f"Classes: {args.num_classes} ({', '.join(CLASS_NAMES)})")
     print(f"Device: {device}")
@@ -246,8 +256,8 @@ def main():
     # Load datasets
     print("📖 LOADING DATA")
     print("-" * 80)
-    train_dataset = VGeneDataset(args.train_csv)
-    val_dataset = VGeneDataset(args.val_csv)
+    train_dataset = VGeneDataset(args.train_csv, encoder=encoder)
+    val_dataset   = VGeneDataset(args.val_csv,   encoder=encoder)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
                               shuffle=True, num_workers=0)
@@ -261,7 +271,7 @@ def main():
     # Create model
     print("🔨 INITIALIZING MODEL")
     print("-" * 80)
-    model = CNN_TerminalEncoding(input_size=2000, num_classes=args.num_classes)
+    model = CNN_TerminalEncoding(input_size=input_size, num_classes=args.num_classes)
     model = model.to(device)
 
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
