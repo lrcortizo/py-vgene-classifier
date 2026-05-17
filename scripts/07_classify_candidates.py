@@ -94,7 +94,7 @@ def calculate_confidence_level(prob, margin, motif_flags=None):
 
     n_motifs = sum(motif_flags.values())
 
-    if prob >= 0.99 and n_motifs >= 4:
+    if prob >= 0.99 and n_motifs >= 3 and motif_flags['W41']:
         return "high"
     elif prob >= 0.80 and n_motifs >= 2:
         return "medium"
